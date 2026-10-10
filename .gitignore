@@ -1,0 +1,13 @@
+# Access 開檔時產生的鎖定檔
+*.laccdb
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# 系統檔
+.DS_Store
+Thumbs.db
+desktop.ini
