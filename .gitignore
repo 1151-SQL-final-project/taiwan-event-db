@@ -1,6 +1,9 @@
 # Access 開檔時產生的鎖定檔
 *.laccdb
 
+# 測試用資料庫：每個人用 db/build_test_db.py 自己產生，不上傳
+db/test_events.accdb
+
 # Python
 __pycache__/
 *.pyc
