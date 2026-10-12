@@ -336,6 +336,15 @@ USERS = [("測試同學", "student@example.com", "臺北市"), ("測試管理員
 SAVES = [("student@example.com", "（測試）恐龍化石科普特展"), ("student@example.com", "（測試）寒假天文研習營")]
 
 
+def com_value(value):
+    """寫進 DAO 前的轉換。pywin32 會把沒有時區的 datetime 當成本地時間（UTC+8）再轉成 UTC，
+    結果存進 Access 會早 8 小時（10/15 00:00 變成 10/14 16:00）。Access 的日期沒有時區，
+    所以標成 UTC，讓 pywin32 原封不動寫入。"""
+    if isinstance(value, dt.datetime) and value.tzinfo is None:
+        return value.replace(tzinfo=dt.timezone.utc)
+    return value
+
+
 def insert_rows(db, table, rows):
     """用 DAO Recordset 新增資料，回傳 {第一欄的值: 新的自動編號}。"""
     rs = db.OpenRecordset(table, 2)  # dbOpenDynaset
@@ -345,7 +354,7 @@ def insert_rows(db, table, rows):
         rs.AddNew()
         for col, value in row.items():
             if value is not None:
-                rs.Fields(col).Value = value
+                rs.Fields(col).Value = com_value(value)
         new_id = rs.Fields(pk).Value
         rs.Update()
         ids[next(iter(row.values()))] = new_id
