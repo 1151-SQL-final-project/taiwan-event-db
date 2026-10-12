@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>臺灣活動資訊（串接測試版）</title>
+  <!-- 這是串接測試用的最小網頁：功能都能用，但沒有設計。正式畫面由網頁設計組改寫。 -->
+  <style>
+    body { font-family: system-ui, "Microsoft JhengHei", sans-serif; max-width: 960px; margin: 0 auto; padding: 16px; line-height: 1.5; }
+    section { border: 1px solid #ccc; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; }
+    h2 { margin-top: 0; font-size: 1.1rem; }
+    label { margin-right: 12px; display: inline-block; }
+    .event { border-top: 1px solid #eee; padding: 8px 0; }
+    .muted { color: #666; font-size: 0.9em; }
+    .error { color: #b00020; }
+    .badge { background: #eef; border-radius: 4px; padding: 0 6px; margin-right: 4px; font-size: 0.85em; }
+    pre { background: #f6f6f6; padding: 8px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>臺灣活動資訊管理系統 <small class="muted">串接測試版</small></h1>
+
+  <section>
+    <h2>1. 串接測試</h2>
+    <button id="health-btn">從 Access 查 1 筆資料</button>
+    <pre id="health-out">（按下按鈕）</pre>
+  </section>
+
+  <section>
+    <h2>2. 帳號</h2>
+    <div id="account-status" class="muted">尚未登入</div>
+    <form id="login-form">
+      <label>信箱 <input name="email" type="email" required value="student@example.com"></label>
+      <label>密碼 <input name="password" type="password" required value="test1234"></label>
+      <button>登入</button>
+      <button type="button" id="logout-btn">登出</button>
+    </form>
+    <details>
+      <summary>註冊新帳號</summary>
+      <form id="register-form">
+        <label>暱稱 <input name="name" required maxlength="20"></label>
+        <label>信箱 <input name="email" type="email" required maxlength="50"></label>
+        <label>密碼（至少 8 碼）<input name="password" type="password" required minlength="8"></label>
+        <label>預設縣市 <select name="default_city_id" id="register-city"></select></label>
+        <button>註冊</button>
+      </form>
+    </details>
+    <div id="account-msg" class="error"></div>
+  </section>
+
+  <section>
+    <h2>3. 搜尋活動</h2>
+    <form id="search-form">
+      <label>地區 <select name="region" id="region"><option value="">不限</option></select></label>
+      <label>縣市 <select name="city_id" id="city"><option value="">不限</option></select></label>
+      <label>類別 <select name="category_id" id="category"><option value="">不限</option></select></label><br>
+      <label>日期 <input type="date" name="date_from"> ～ <input type="date" name="date_to"></label>
+      <label>關鍵字 <input name="keyword"></label><br>
+      <span id="discount-types"></span>
+      <button>搜尋</button>
+    </form>
+    <div id="results"></div>
+  </section>
+
+  <section id="detail-section" hidden>
+    <h2>活動詳情</h2>
+    <div id="detail"></div>
+  </section>
+
+  <section>
+    <h2>4. 我的收藏</h2>
+    <button id="saves-btn">重新整理</button>
+    <div id="saves"></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
