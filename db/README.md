@@ -8,7 +8,7 @@
 
 ## 測試用資料庫
 
-`build_test_db.py` 會產生 `test_events.accdb`：照 [docs/schema-v2.md](../docs/schema-v2.md) 的設計建表，塞少量假資料，給後端和網頁在主檔完成前測試用。
+`build_test_db.py` 會產生 `test_events.accdb`：照 [docs/schema.md](../docs/schema.md) 的 8 張表建表（結構在 `schema.py`），塞少量假資料（三種角色的帳號、四種審核狀態的活動），給後端和網頁在主檔完成前測試用。
 
 ```powershell
 .venv\Scripts\python db\build_test_db.py

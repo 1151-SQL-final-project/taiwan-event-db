@@ -68,3 +68,16 @@ def run(conn, sql_name: str, /, **params) -> list[dict]:
     cursor = conn.cursor()
     cursor.execute(sql, [params[n] for n in names])
     return _rows_to_dicts(cursor) if cursor.description else []
+
+
+def execute(conn, sql_name: str, /, **params) -> int:
+    """執行 sql/<sql_name>.sql 的 INSERT／UPDATE／DELETE，回傳影響的筆數。"""
+    sql, names = load_sql(sql_name)
+    cursor = conn.cursor()
+    cursor.execute(sql, [params[n] for n in names])
+    return cursor.rowcount
+
+
+def last_id(conn) -> int:
+    """剛剛 INSERT 的自動編號（Access 用 @@IDENTITY，同一條連線內有效）。"""
+    return query(conn, "SELECT @@IDENTITY AS NewID")[0]["NewID"]

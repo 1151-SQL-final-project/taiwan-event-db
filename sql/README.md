@@ -18,24 +18,50 @@
 ## 後端目前用到的查詢
 
 改這些檔案時，**欄位名稱（SELECT 出來的欄位）和參數名稱不要變**，網頁靠這些名稱顯示資料。
+資料表是 8 張表的定稿（見 [docs/schema.md](../docs/schema.md)）。「公開活動」的條件是
+`EventStatus = '上架中' AND EventEndDate >= Date()`（已寫在 `search_events.sql`）。
 
 | 檔案 | 用途 | 參數 |
 |---|---|---|
-| `list_categories.sql` | 類別下拉選單 | |
+| `list_categories.sql` | 類別下拉選單（含 CategoryGroup：學習類／休閒類） | |
 | `list_cities.sql` | 縣市下拉選單 | |
 | `list_discount_types.sql` | 優惠類型勾選框 | |
-| `search_events.sql` | 搜尋的基本查詢（篩選條件由後端接在後面） | |
-| `event_detail.sql` | 活動詳情 | `event_id` |
-| `event_sessions.sql` | 活動的所有場次與場館 | `event_id` |
+| `search_events.sql` | 搜尋的基本查詢（活動＋類別＋場館＋縣市；篩選條件由後端接在後面） | |
+| `event_detail.sql` | 活動詳情（含場館地址、上架商家、審核狀態） | `event_id` |
 | `event_discounts.sql` | 活動的所有優惠與是否有效 | `event_id` |
 | `user_by_email.sql` | 登入時找使用者 | `email` |
-| `user_by_id.sql` | 目前登入的使用者 | `user_id` |
-| `insert_user.sql` | 註冊 | `name`, `email`, `password_hash`, `default_city_id` |
+| `user_by_id.sql` | 目前登入的使用者（含角色 UserRole） | `user_id` |
+| `insert_user.sql` | 註冊 | `name`, `email`, `password_hash`, `role`, `default_city_id` |
 | `list_saves.sql` | 我的收藏 | `user_id` |
 | `insert_save.sql` | 收藏 | `user_id`, `event_id` |
 | `delete_save.sql` | 取消收藏 | `user_id`, `event_id` |
 
-## 還沒寫、等伯元補的查詢
+## 還沒寫的查詢（伯元）
 
-統計各地區活動數、熱門收藏排行、一鍵下架已結束活動（UPDATE）、管理端的新增／修改／刪除、早鳥即將截止提醒（加分）……
-寫好、在 Access 測過之後放進這個資料夾，再跟晨嬡說檔名與參數，後端接上 API。
+寫好、在 Access 測過之後放進這個資料夾，**檔名和參數名稱照下表**，後端（`api/main.py` 裡回傳 501 的 API）就能直接接上。
+商家用的放 `sql/merchant/`，管理員用的放 `sql/admin/`。
+
+### 商家後台
+
+| 檔案 | 用途 | 參數 |
+|---|---|---|
+| `list_venues.sql` | 場館清單（VenueID、VenueName、VenueAddress、VenueCity_FK、CityName） | |
+| `insert_venue.sql` | 新增場館（INSERT） | `name`, `city_id`, `address` |
+| `merchant/list_my_events.sql` | 我上架的所有活動，各種審核狀態都列出來 | `organizer_id` |
+| `merchant/insert_event.sql` | 上架活動（INSERT）：`EventStatus` 填 `'待審核'`、`EventDataSource` 填 `'商家上架'` | `category_id`, `venue_id`, `title`, `start_date`, `end_date`, `price`, `url`, `organizer_id`, `description` |
+| `merchant/update_event.sql` | 修改自己的活動（UPDATE）：改回 `'待審核'`；`WHERE EventID = [@event_id] AND EventOrganizer_FK = [@organizer_id]` | 同上＋`event_id` |
+| `merchant/delete_event_discounts.sql` | 修改活動時先刪掉原本的優惠（DELETE） | `event_id` |
+| `insert_discount.sql` | 新增優惠（INSERT） | `event_id`, `discount_type_id`, `description`, `price`, `start_date`, `end_date` |
+
+### 管理員後台
+
+| 檔案 | 用途 | 參數 |
+|---|---|---|
+| `admin/deactivate_ended_events.sql` | **自動下架**：`UPDATE EventTable SET EventStatus = '已下架' WHERE EventStatus = '上架中' AND EventEndDate < Date()` | |
+| `admin/list_events.sql` | 所有活動＋上架商家名稱（JOIN UserTable），不寫 WHERE，條件由後端接 | |
+| `admin/update_event_status.sql` | 審核與下架（UPDATE `EventStatus`） | `status`, `event_id` |
+| `admin/stats_events_by_status.sql` | 各審核狀態活動數（GROUP BY） | |
+| `stats_events_by_region.sql` | 各地區上架中的活動數（活動 → 場館 → 縣市 JOIN＋GROUP BY） | |
+| `popular_saves.sql` | 熱門收藏排行前 10 名（JOIN＋GROUP BY＋TOP） | |
+
+加分：`early_bird_ending_soon.sql`（N 天內截止的早鳥優惠，參數 `days`）。

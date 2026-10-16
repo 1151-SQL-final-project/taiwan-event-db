@@ -38,6 +38,7 @@
     <details>
       <summary>註冊新帳號</summary>
       <form id="register-form">
+        <label>身分 <select name="role"><option>使用者</option><option>商家</option></select></label>
         <label>暱稱 <input name="name" required maxlength="20"></label>
         <label>信箱 <input name="email" type="email" required maxlength="50"></label>
         <label>密碼（至少 8 碼）<input name="password" type="password" required minlength="8"></label>
@@ -45,6 +46,7 @@
         <button>註冊</button>
       </form>
     </details>
+    <p class="muted">測試帳號（密碼都是 test1234）：使用者 student@example.com、商家 merchant@example.com、管理員 admin@example.com</p>
     <div id="account-msg" class="error"></div>
   </section>
 
@@ -53,7 +55,8 @@
     <form id="search-form">
       <label>地區 <select name="region" id="region"><option value="">不限</option></select></label>
       <label>縣市 <select name="city_id" id="city"><option value="">不限</option></select></label>
-      <label>類別 <select name="category_id" id="category"><option value="">不限</option></select></label><br>
+      <label>類別 <select name="category_id" id="category"><option value="">不限</option></select></label>
+      <label>類型 <select name="category_group" id="category-group"><option value="">不限</option></select></label><br>
       <label>日期 <input type="date" name="date_from"> ～ <input type="date" name="date_to"></label>
       <label>關鍵字 <input name="keyword"></label><br>
       <span id="discount-types"></span>
@@ -68,9 +71,15 @@
   </section>
 
   <section>
-    <h2>4. 我的收藏</h2>
+    <h2>4. 我的收藏（使用者）</h2>
     <button id="saves-btn">重新整理</button>
     <div id="saves"></div>
+  </section>
+
+  <section>
+    <h2>5. 商家後台、管理員後台（待實作）</h2>
+    <p class="muted">商家：上架活動與優惠、修改自己的活動、新增場館。管理員：審核（通過／退回）、違規下架、統計。
+      API 的路徑與參數已經定好（見 README 的 API 一覽，目前回傳 501），正式畫面由昱妏製作。</p>
   </section>
 
   <script src="app.js"></script>

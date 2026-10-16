@@ -9,10 +9,9 @@ const esc = (value) =>
 const day = (iso) => (iso ? iso.slice(0, 10).replaceAll("-", "/") : "");
 const time = (iso) => (iso ? iso.slice(0, 16).replace("T", " ").replaceAll("-", "/") : "");
 
-// 票價規則：0 = 免費、null = 不明，有原始說明就一起顯示
-function priceText(price, note) {
-  const main = price === null ? "票價未定" : price === 0 ? "免費" : `NT$${price} 起`;
-  return note ? `${main}（${note}）` : main;
+// 票價規則：EventOriginalPrice 只記全票；0 = 免費、null = 未公布（學生票等記在優惠）
+function priceText(price) {
+  return price === null ? "票價未公布" : price === 0 ? "免費" : `全票 NT$${price}`;
 }
 
 let token = null;
@@ -47,7 +46,7 @@ async function refreshAccount() {
   if (!token) { $("account-status").textContent = "尚未登入"; return; }
   try {
     const me = await api("/api/me");
-    $("account-status").textContent = `已登入：${me.UserName}（${me.UserEmail}），預設縣市：${me.CityName ?? "未設定"}`;
+    $("account-status").textContent = `已登入：${me.UserName}（${me.UserEmail}），角色：${me.UserRole}，預設縣市：${me.CityName ?? "未設定"}`;
     if (me.UserDefaultCity_FK) $("city").value = me.UserDefaultCity_FK; // 預設查詢縣市
     loadSaves();
   } catch { setToken(null); }
@@ -84,7 +83,8 @@ async function loadOptions() {
   const cities = opts.cities.map((c) => option(c.CityID, `${c.CityName}（${c.CityRegion}）`)).join("");
   $("city").innerHTML += cities;
   $("register-city").innerHTML = option("", "不設定") + cities;
-  $("category").innerHTML += opts.categories.map((c) => option(c.CategoryID, c.CategoryName)).join("");
+  $("category").innerHTML += opts.categories.map((c) => option(c.CategoryID, `${c.CategoryName}（${c.CategoryGroup}）`)).join("");
+  $("category-group").innerHTML += opts.category_groups.map((g) => option(g, g)).join("");
   $("discount-types").innerHTML = opts.discount_types
     .map((t) => `<label><input type="checkbox" name="discount_type_id" value="${t.DiscountTypeID}"> ${esc(t.DiscountTypeName)}</label>`)
     .join("");
@@ -103,12 +103,11 @@ $("search-form").onsubmit = async (e) => {
 };
 
 function eventRow(e) {
-  const venues = e.Venues.map((v) => `${v.CityName} ${v.VenueName}`).join("、");
   const discount = e.BestDiscountPrice !== null ? `<span class="badge">優惠價 NT$${e.BestDiscountPrice} 起</span>` : "";
   return `<div class="event">
     <a href="#" data-event="${e.EventID}"><b>${esc(e.EventTitle)}</b></a>
-    <span class="badge">${esc(e.CategoryName)}</span>${discount}<br>
-    <span class="muted">${day(e.EventStartDate)} ～ ${day(e.EventEndDate)}｜${esc(priceText(e.EventOriginalPrice, e.EventPriceNote))}｜${esc(venues)}</span>
+    <span class="badge">${esc(e.CategoryName)}</span><span class="badge">${esc(e.CategoryGroup)}</span>${discount}<br>
+    <span class="muted">${day(e.EventStartDate)} ～ ${day(e.EventEndDate)}｜${esc(priceText(e.EventOriginalPrice))}｜${esc(e.CityName)} ${esc(e.VenueName)}</span>
   </div>`;
 }
 
@@ -119,18 +118,16 @@ document.addEventListener("click", (e) => {
 
 async function showDetail(id) {
   const e = await api(`/api/events/${id}`);
-  const sessions = e.Sessions.map((s) => `<li>${time(s.SessionStartTime)}${s.SessionEndTime ? " ～ " + time(s.SessionEndTime) : ""}
-      ｜${esc(s.CityName)} ${esc(s.VenueName)}（${esc(s.VenueAddress)}）
-      <a href="${esc(s.GoogleMapsURL)}" target="_blank" rel="noopener">在 Google 地圖開啟</a></li>`).join("");
   const discounts = e.Discounts.map((d) => `<li>${d.IsValidNow ? "" : "<s>"}${esc(d.DiscountTypeName)}：NT$${d.DiscountPrice}
       ${esc(d.DiscountDescription)}${d.DiscountEndDate ? `（截止 ${day(d.DiscountEndDate)}）` : "（無截止日）"}${d.IsValidNow ? "" : "</s> 已失效"}</li>`).join("");
   $("detail").innerHTML = `
-    <h3>${esc(e.EventTitle)} <span class="badge">${esc(e.CategoryName)}</span></h3>
-    <p>${day(e.EventStartDate)} ～ ${day(e.EventEndDate)}｜${esc(priceText(e.EventOriginalPrice, e.EventPriceNote))}</p>
+    <h3>${esc(e.EventTitle)} <span class="badge">${esc(e.CategoryName)}</span><span class="badge">${esc(e.EventStatus)}</span></h3>
+    <p>${day(e.EventStartDate)} ～ ${day(e.EventEndDate)}｜${esc(priceText(e.EventOriginalPrice))}</p>
+    <p><b>場館</b>：${esc(e.CityName)} ${esc(e.VenueName)}（${esc(e.VenueAddress)}）
+      <a href="${esc(e.GoogleMapsURL)}" target="_blank" rel="noopener">在 Google 地圖開啟</a></p>
     <p>${esc(e.EventDescription)}</p>
-    <p><b>場次</b></p><ul>${sessions || "<li>尚無場次資料</li>"}</ul>
     <p><b>優惠</b></p><ul>${discounts || "<li>沒有優惠</li>"}</ul>
-    <p>${e.EventURL ? `<a href="${esc(e.EventURL)}" target="_blank" rel="noopener">活動官網</a>｜` : ""}資料來源：${esc(e.EventDataSource)}</p>
+    <p>${e.EventURL ? `<a href="${esc(e.EventURL)}" target="_blank" rel="noopener">活動官網</a>｜` : ""}上架：${esc(e.OrganizerName)}｜資料來源：${esc(e.EventDataSource)}</p>
     <button id="save-btn">收藏</button> <span id="save-msg"></span>`;
   $("detail-section").hidden = false;
   $("save-btn").onclick = async () => {
@@ -146,7 +143,7 @@ async function loadSaves() {
   try {
     const saves = await api("/api/saves");
     $("saves").innerHTML = saves.length ? saves.map((s) => `<div class="event">
-        <a href="#" data-event="${s.EventID}"><b>${esc(s.EventTitle)}</b></a>${s.EventIsActive ? "" : " <span class='badge'>已下架</span>"}
+        <a href="#" data-event="${s.EventID}"><b>${esc(s.EventTitle)}</b></a>${s.EventStatus === "上架中" ? "" : ` <span class='badge'>${esc(s.EventStatus)}</span>`}
         <span class="muted">${day(s.EventStartDate)} ～ ${day(s.EventEndDate)}｜收藏於 ${time(s.SaveDate)}</span>
         <button data-unsave="${s.EventID}">取消收藏</button></div>`).join("")
       : "<p class='muted'>還沒有收藏</p>";

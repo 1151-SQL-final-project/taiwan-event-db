@@ -1,2 +1,2 @@
-﻿EventTitle,CategoryName,EventStartDate,EventEndDate,EventOriginalPrice,EventPriceNote,EventURL,EventDataSource,EventDescription
-（範例）城市光影攝影展,展覽,2026/11/01,2026/12/31,250,全票 250／優待票 150,https://example.com/event,文化部開放資料,活動簡介寫在這裡
+﻿EventTitle,CategoryName,VenueName,EventStartDate,EventEndDate,EventOriginalPrice,EventURL,EventDataSource,EventDescription
+（範例）城市光影攝影展,展覽,華山1914文化創意產業園區,2026/11/01,2026/12/31,250,https://example.com/event,人工建檔,活動簡介寫在這裡
