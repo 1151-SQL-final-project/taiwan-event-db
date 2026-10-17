@@ -1,4 +1,4 @@
-/* 臺灣活動通：首頁（index.html）與串接測試頁（test.html）共用的樣式
+/* 事集：首頁（index.html）與串接測試頁（test.html）共用的樣式
    配色取自 logo：米白底 #f7f4ee、深藍 #203a55（主色）、赭紅 #b06040（點綴、優惠）
    顏色都用變數，深色模式只換變數；正式頁面請沿用這組變數 */
 :root {
@@ -87,8 +87,8 @@ h1, h2, h3 { line-height: 1.3; margin: 0 0 .5em; }
 .pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 14px; color: var(--text-2); text-decoration: none; }
 .pill:hover { border-color: var(--brand-2); color: var(--text); }
 .home-art { position: relative; justify-self: center; width: 100%; max-width: 380px; aspect-ratio: 1; }
-.home-art::before { content: ""; position: absolute; inset: 4%; border-radius: 50%; border: 2px dashed color-mix(in srgb, var(--brand-2) 45%, transparent); }
-.home-art img { position: absolute; inset: 8%; width: 84%; height: 84%; padding: 11%; border-radius: 50%; background: var(--logo-plate); }
+.home-art::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--logo-plate); }
+.home-art img { position: absolute; inset: 0; width: 100%; height: 100%; padding: 7%; }
 @media (max-width: 760px) { .home-hero { grid-template-columns: 1fr; gap: 8px; padding-top: 8px; } .home-art { order: -1; max-width: 160px; } }
 
 .home-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; }
