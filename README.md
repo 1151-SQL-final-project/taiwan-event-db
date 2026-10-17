@@ -32,7 +32,7 @@ SQL與資料庫設計 115-1 期末專題：臺灣活動資訊管理系統
 | `db/` | `schema.py` 8 張表的結構（驗證規則、查閱欄位、關聯）；`build_test_db.py` 產生測試用資料庫；正式 Access 主檔之後放這裡 | 晏均（主檔） |
 | `api/` | 後端：連接 Access、登入（含角色）、搜尋、收藏；商家與管理員 API 的骨架 | 晨嬡 |
 | `sql/` | 每個查詢一個 `.sql` 檔，後端直接讀取（寫法與「還沒寫的查詢」見 [sql/README.md](sql/README.md)） | 伯元 |
-| `web/` | 網頁。目前是沒有設計的串接測試版，功能都能用（見 [web/README.md](web/README.md)） | 邦妤（使用者頁面）、昱妏（商家、管理員頁面） |
+| `web/` | 網頁：首頁（配色取自 logo）與沒有設計的串接測試頁 `test.html`，功能都能用（見 [web/README.md](web/README.md)） | 邦妤（使用者頁面）、昱妏（商家、管理員頁面） |
 | `data/` | 整理好的 CSV 資料；`data/templates/` 是建檔範本（見 [說明](data/templates/README.md)） | 俊緯、揚健 |
 | `docs/` | 提案、報告、會議紀錄、引用清單；資料表設計見 [docs/schema.md](docs/schema.md) | 全組 |
 
@@ -62,7 +62,8 @@ python -m venv .venv
 
 看到 `Uvicorn running on http://127.0.0.1:8000` 就成功了：
 
-- 網頁：<http://127.0.0.1:8000>
+- 首頁：<http://127.0.0.1:8000>
+- 串接測試頁（登入、搜尋、收藏）：<http://127.0.0.1:8000/test.html>
 - API 測試頁（可以直接在瀏覽器試每一支 API）：<http://127.0.0.1:8000/docs>
 
 停止後端：在 PowerShell 按 `Ctrl + C`。

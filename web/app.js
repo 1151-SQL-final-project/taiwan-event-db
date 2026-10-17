@@ -103,7 +103,7 @@ $("search-form").onsubmit = async (e) => {
 };
 
 function eventRow(e) {
-  const discount = e.BestDiscountPrice !== null ? `<span class="badge">優惠價 NT$${e.BestDiscountPrice} 起</span>` : "";
+  const discount = e.BestDiscountPrice !== null ? `<span class="badge deal">優惠價 NT$${e.BestDiscountPrice} 起</span>` : "";
   return `<div class="event">
     <a href="#" data-event="${e.EventID}"><b>${esc(e.EventTitle)}</b></a>
     <span class="badge">${esc(e.CategoryName)}</span><span class="badge">${esc(e.CategoryGroup)}</span>${discount}<br>
@@ -156,4 +156,18 @@ document.addEventListener("click", async (e) => {
   if (btn) { await api(`/api/saves/${btn.dataset.unsave}`, { method: "DELETE" }); loadSaves(); }
 });
 
-loadOptions().then(refreshAccount).catch((err) => { $("results").innerHTML = `<p class="error">${esc(err.message)}</p>`; });
+// 從首頁點過來時，網址會帶搜尋條件（例如 test.html?region=北部），填進表單後直接搜尋
+function searchFromURL() {
+  const params = new URLSearchParams(location.search);
+  if (![...params.keys()].length) return;
+  const form = $("search-form");
+  form.elements.city_id.value = "";  // 不套用預設縣市，只用網址的條件
+  for (const [key, value] of params) {
+    const boxes = form.querySelectorAll(`input[type=checkbox][name="${CSS.escape(key)}"]`);
+    if (boxes.length) boxes.forEach((b) => { if (b.value === value) b.checked = true; });
+    else if (form.elements[key]) form.elements[key].value = value;
+  }
+  form.requestSubmit();
+}
+
+loadOptions().then(refreshAccount).then(searchFromURL).catch((err) => { $("results").innerHTML = `<p class="error">${esc(err.message)}</p>`; });

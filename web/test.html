@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>臺灣活動資訊（串接測試版）</title>
+  <!-- 這是串接測試用的最小網頁：功能都能用，但沒有設計。正式畫面由網頁設計組改寫。 -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="index.html" class="brand"><img class="brand-logo" src="logo.png" alt="" width="34" height="34">臺灣活動通</a>
+      <nav class="nav" aria-label="主選單">
+        <a href="index.html">首頁</a>
+        <a href="test.html" aria-current="page">串接測試頁</a>
+        <a href="/docs">API 測試頁</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container test">
+  <h1>臺灣活動資訊管理系統 <small class="muted">串接測試版</small></h1>
+
+  <section>
+    <h2>1. 串接測試</h2>
+    <button id="health-btn">從 Access 查 1 筆資料</button>
+    <pre id="health-out">（按下按鈕）</pre>
+  </section>
+
+  <section>
+    <h2>2. 帳號</h2>
+    <div id="account-status" class="muted">尚未登入</div>
+    <form id="login-form">
+      <label>信箱 <input name="email" type="email" required value="student@example.com"></label>
+      <label>密碼 <input name="password" type="password" required value="test1234"></label>
+      <button>登入</button>
+      <button type="button" id="logout-btn">登出</button>
+    </form>
+    <details>
+      <summary>註冊新帳號</summary>
+      <form id="register-form">
+        <label>身分 <select name="role"><option>使用者</option><option>商家</option></select></label>
+        <label>暱稱 <input name="name" required maxlength="20"></label>
+        <label>信箱 <input name="email" type="email" required maxlength="50"></label>
+        <label>密碼（至少 8 碼）<input name="password" type="password" required minlength="8"></label>
+        <label>預設縣市 <select name="default_city_id" id="register-city"></select></label>
+        <button>註冊</button>
+      </form>
+    </details>
+    <p class="muted">測試帳號（密碼都是 test1234）：使用者 student@example.com、商家 merchant@example.com、管理員 admin@example.com</p>
+    <div id="account-msg" class="error"></div>
+  </section>
+
+  <section>
+    <h2>3. 搜尋活動</h2>
+    <form id="search-form">
+      <label>地區 <select name="region" id="region"><option value="">不限</option></select></label>
+      <label>縣市 <select name="city_id" id="city"><option value="">不限</option></select></label>
+      <label>類別 <select name="category_id" id="category"><option value="">不限</option></select></label>
+      <label>類型 <select name="category_group" id="category-group"><option value="">不限</option></select></label><br>
+      <label>日期 <input type="date" name="date_from"> ～ <input type="date" name="date_to"></label>
+      <label>關鍵字 <input name="keyword"></label><br>
+      <span id="discount-types"></span>
+      <button>搜尋</button>
+    </form>
+    <div id="results"></div>
+  </section>
+
+  <section id="detail-section" hidden>
+    <h2>活動詳情</h2>
+    <div id="detail"></div>
+  </section>
+
+  <section>
+    <h2>4. 我的收藏（使用者）</h2>
+    <button id="saves-btn">重新整理</button>
+    <div id="saves"></div>
+  </section>
+
+  <section>
+    <h2>5. 商家後台、管理員後台（待實作）</h2>
+    <p class="muted">商家：上架活動與優惠、修改自己的活動、新增場館。管理員：審核（通過／退回）、違規下架、統計。
+      API 的路徑與參數已經定好（見 README 的 API 一覽，目前回傳 501），正式畫面由昱妏製作。</p>
+  </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
