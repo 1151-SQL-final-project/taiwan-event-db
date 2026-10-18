@@ -74,42 +74,13 @@ h1, h2, h3 { line-height: 1.3; margin: 0 0 .5em; }
 .input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ---------- 首頁 ---------- */
-.home-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; align-items: center; padding: 20px 0 28px; }
-.eyebrow { color: var(--brand-2); font-weight: 700; letter-spacing: .08em; font-size: .85rem; margin: 0 0 8px; }
-.home-hero h1 { font-size: clamp(1.7rem, 4.6vw, 2.6rem); line-height: 1.25; }
-.home-hero h1 em { font-style: normal; background: linear-gradient(transparent 62%, color-mix(in srgb, var(--brand-2) 30%, transparent) 62%); }
-.lead { color: var(--text-2); font-size: 1.05rem; margin: 0 0 20px; }
-.home-search { display: flex; gap: 8px; padding: 6px; }
-.home-search .input { flex: 1; border: 0; background: transparent; font-size: 1rem; }
-.home-search .input:focus { box-shadow: none; }
-.home-search .btn { white-space: nowrap; flex-shrink: 0; padding-inline: 20px; }
-.home-quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 14px; color: var(--text-2); text-decoration: none; }
-.pill:hover { border-color: var(--brand-2); color: var(--text); }
-.home-art { position: relative; justify-self: center; width: 100%; max-width: 380px; aspect-ratio: 1; }
+.home-hero { min-height: calc(100vh - 230px); display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px 0; }
+.home-art { position: relative; width: min(300px, 64vw); aspect-ratio: 1; margin-bottom: 12px; }
 .home-art::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--logo-plate); }
 .home-art img { position: absolute; inset: 0; width: 100%; height: 100%; padding: 7%; }
-@media (max-width: 760px) { .home-hero { grid-template-columns: 1fr; gap: 8px; padding-top: 8px; } .home-art { order: -1; max-width: 160px; } }
-
-.home-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; }
-.home-stats > div { padding: 16px 20px; }
-.home-stats > div + div { border-left: 1px solid var(--line); }
-.home-stats b { display: block; font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.1; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
-.home-stats span { color: var(--text-2); font-size: .88rem; }
-
-.home-section { margin-top: 32px; }
-.section-head h2 { font-size: 1.15rem; }
-.section-head h2::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-2);
-  margin-right: 8px; vertical-align: middle; }
-.tiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
-.tile { padding: 14px 16px; display: grid; gap: 2px; color: inherit; text-decoration: none; }
-.tile:hover { border-color: var(--accent); }
-.tile span { color: var(--text-3); font-size: .85rem; }
-.roles { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
-.role-card { padding: 18px 20px; border-top: 4px solid var(--accent); }
-.role-card:nth-child(2) { border-top-color: var(--brand-2); }
-.role-card:nth-child(3) { border-top-color: var(--text-3); }
-.role-card p { margin: 0; color: var(--text-2); font-size: .92rem; }
+.home-name { font-size: clamp(2.6rem, 9vw, 4rem); letter-spacing: .25em; text-indent: .25em; margin: 0; }
+.eyebrow { color: var(--brand-2); font-weight: 700; letter-spacing: .3em; text-indent: .3em; font-size: .85rem; margin: 2px 0 18px; }
+.lead { color: var(--text-2); font-size: 1.05rem; line-height: 1.8; max-width: 32em; margin: 0; }
 
 /* ---------- 串接測試頁 ---------- */
 .test section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; }
