@@ -84,6 +84,8 @@ h1, .brand, .home-name { font-family: var(--font-display); font-weight: 700; }
 .home-name { font-size: clamp(2.6rem, 9vw, 4rem); letter-spacing: .25em; text-indent: .25em; margin: 0; }
 .eyebrow { color: var(--brand-2); font-weight: 700; letter-spacing: .3em; text-indent: .3em; font-size: .85rem; margin: 2px 0 18px; }
 .lead { color: var(--text-2); font-size: 1.05rem; line-height: 1.8; max-width: 32em; margin: 0; }
+.home-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 28px; }
+.home-actions .btn { min-width: 140px; padding: 11px 24px; font-size: 1.02rem; border-radius: 999px; }
 
 /* ---------- 串接測試頁 ---------- */
 .test section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; }
