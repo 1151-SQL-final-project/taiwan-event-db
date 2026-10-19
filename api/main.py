@@ -58,8 +58,10 @@ def not_implemented(what: str):
 
 # ---------- 工具 ----------
 
-def google_maps_url(address: str) -> str:
-    return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(address)
+def google_maps_url(query: str) -> str:
+    """Google 地圖搜尋連結。用場館名稱查會直接開到場館（地址只會標在地址的位置）；
+    名稱查不到時（例如名稱含廳別、樓層），地址連結當備用。"""
+    return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
 
 
 def user_id_from_header(authorization: str | None) -> int | None:
@@ -194,7 +196,8 @@ def event_detail(event_id: int, user: dict | None = Depends(optional_user)):
         if not rows:
             raise HTTPException(404, "找不到這個活動")
         event = rows[0]
-        event["GoogleMapsURL"] = google_maps_url(event["VenueAddress"])
+        event["GoogleMapsURL"] = google_maps_url(event["VenueName"])
+        event["GoogleMapsAddressURL"] = google_maps_url(event["VenueAddress"])
         event["Discounts"] = db.run(conn, "event_discounts", event_id=event_id)
         for d in event["Discounts"]:
             d["IsValidNow"] = bool(d["IsValidNow"])  # Access 的 True 是 -1

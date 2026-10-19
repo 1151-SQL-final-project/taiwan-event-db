@@ -106,7 +106,7 @@ $env:EVENT_DB_PATH = "C:\完整路徑\活動資料庫.accdb"
 | GET | `/api/health` | 串接測試：從 Access 查 1 筆活動 | |
 | GET | `/api/options` | 地區、類別分組、審核狀態、縣市、類別、優惠類型清單 | |
 | GET | `/api/events` | 搜尋上架中、還沒結束的活動。參數：`region`、`city_id`、`date_from`、`date_to`（yyyy-mm-dd）、`category_id`、`category_group`（學習類／休閒類）、`discount_type_id`（可多個）、`keyword` | |
-| GET | `/api/events/{id}` | 活動詳情：場館地址（附 Google 地圖連結）、優惠、上架商家。非上架中的活動只有上架的商家和管理員看得到 | |
+| GET | `/api/events/{id}` | 活動詳情：場館地址與 Google 地圖連結（`GoogleMapsURL` 用場館名稱查，直接開到場館；`GoogleMapsAddressURL` 用地址定位，當備用）、優惠、上架商家。非上架中的活動只有上架的商家和管理員看得到 | |
 | POST | `/api/auth/register` | 註冊 `{name, email, password, role, default_city_id}`，`role` 只能是「使用者」或「商家」，密碼至少 8 碼 | |
 | POST | `/api/auth/login` | 登入 `{email, password}`，回傳 token 與角色 | |
 | GET | `/api/me` | 目前登入的帳號（含角色 `UserRole`） | 登入 |

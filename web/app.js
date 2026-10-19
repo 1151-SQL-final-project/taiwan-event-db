@@ -124,7 +124,7 @@ async function showDetail(id) {
     <h3>${esc(e.EventTitle)} <span class="badge">${esc(e.CategoryName)}</span><span class="badge">${esc(e.EventStatus)}</span></h3>
     <p>${day(e.EventStartDate)} ～ ${day(e.EventEndDate)}｜${esc(priceText(e.EventOriginalPrice))}</p>
     <p><b>場館</b>：${esc(e.CityName)} ${esc(e.VenueName)}（${esc(e.VenueAddress)}）
-      <a href="${esc(e.GoogleMapsURL)}" target="_blank" rel="noopener">在 Google 地圖開啟</a></p>
+      <a href="${esc(e.GoogleMapsURL)}" target="_blank" rel="noopener">在 Google 地圖開啟</a>（找不到時<a href="${esc(e.GoogleMapsAddressURL)}" target="_blank" rel="noopener">用地址定位</a>）</p>
     <p>${esc(e.EventDescription)}</p>
     <p><b>優惠</b></p><ul>${discounts || "<li>沒有優惠</li>"}</ul>
     <p>${e.EventURL ? `<a href="${esc(e.EventURL)}" target="_blank" rel="noopener">活動官網</a>｜` : ""}上架：${esc(e.OrganizerName)}｜資料來源：${esc(e.EventDataSource)}</p>
