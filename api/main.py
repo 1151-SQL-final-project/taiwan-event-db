@@ -1,4 +1,4 @@
-"""事集（臺灣活動資訊管理系統）後端 API。
+"""探點（臺灣活動資訊管理系統）後端 API。
 
 啟動（在專案根目錄）：
     .venv\\Scripts\\python -m uvicorn main:app --app-dir api --reload
@@ -29,7 +29,7 @@ import security
 # TODO（自動下架）：伺服器啟動時執行一次 sql/admin/deactivate_ended_events.sql，
 # 把已結束、狀態還是上架中的活動改成已下架。可以用 FastAPI 的 lifespan 做。
 # 在那之前，搜尋本身已經只列還沒結束的活動（寫在 sql/search_events.sql）。
-app = FastAPI(title="事集 API")
+app = FastAPI(title="探點 API")
 
 REGIONS = ["北部", "中部", "南部", "東部", "離島"]
 CATEGORY_GROUPS = ["學習類", "休閒類"]
