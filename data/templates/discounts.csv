@@ -1,3 +1,3 @@
-﻿EventTitle,DiscountTypeName,DiscountDescription,DiscountPrice,DiscountStartDate,DiscountEndDate,SourceURL,RecordedBy,RecordedDate
-（範例）城市光影攝影展,學生優惠,憑學生證購票,150,,,https://example.com/event/tickets,范揚健,2026/10/15
-（範例）城市光影攝影展,早鳥優惠,早鳥預售票,200,2026/10/01,2026/10/31,https://example.com/event/tickets,范揚健,2026/10/15
+﻿EventKey,EventTitle,DiscountTypeName,DiscountDescription,DiscountPrice,DiscountStartDate,DiscountEndDate,SourceURL,RecordedBy,RecordedDate
+M001,（範例）城市光影攝影展,學生優惠,憑學生證購票,150,,,https://example.com/event/tickets,范揚健,2026/10/15
+M001,（範例）城市光影攝影展,早鳥優惠,早鳥預售票,200,2026/10/01,2026/10/31,https://example.com/event/tickets,范揚健,2026/10/15
