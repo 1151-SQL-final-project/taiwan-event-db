@@ -7,7 +7,7 @@
 - 活動日期以執行當天為基準往前後推算，所以隨時重建都會有
   「進行中／即將開始／已結束」的活動可以測。
 - 三種角色各有一個測試帳號，活動也涵蓋四種審核狀態（待審核、上架中、已退回、已下架）。
-- 正式資料（文化部開放資料＋人工建檔）由俊緯、揚健整理後匯入主檔。
+- 真實資料（文化部開放資料＋人工建檔）請用 build_db.py。
 """
 import datetime as dt
 import pathlib
@@ -23,10 +23,10 @@ DB_PATH = pathlib.Path(__file__).resolve().parent / "test_events.accdb"
 
 # ---- 測試資料 ----
 # 假帳號，密碼都是 test1234。管理員帳號不開放註冊，由這裡建立
-USERS = [  # (暱稱, 信箱, 角色, 預設縣市)
-    ("測試管理員", "admin@example.com", "管理員", "臺北市"),
-    ("測試商家", "merchant@example.com", "商家", "臺北市"),
-    ("測試同學", "student@example.com", "使用者", "臺北市"),
+USERS = [  # (暱稱或商家名稱, 信箱, 角色)
+    ("測試管理員", "admin@example.com", "管理員"),
+    ("測試商家", "merchant@example.com", "商家"),
+    ("測試同學", "student@example.com", "使用者"),
 ]
 VENUES = [  # (名稱, 縣市, 地址)
     ("國立臺灣師範大學 圖書館校區", "臺北市", "臺北市大安區和平東路一段162號"),
@@ -57,11 +57,27 @@ EVENTS = [
      "merchant@example.com", "上架中", "測試用：票價未公布（空值）。"),
     ("（測試）待審核的親子科學營", "研習營隊", "國立自然科學博物館", 30, 32, 1800,
      "merchant@example.com", "待審核", "測試用：商家剛上架，等管理員審核。"),
+    ("（測試）城市光影 攝影展 2026", "展覽", "華山1914文化創意產業園區", -3, 40, 250,
+     "merchant@example.com", "待審核", "測試用：和已上架的「城市光影攝影展」幾乎一樣（重複上架），審核時會提醒管理員。"),
     ("（測試）被退回的講座", "講座", "國立臺灣師範大學 圖書館校區", 15, 15, 100,
      "merchant@example.com", "已退回", "測試用：資料不完整，被管理員退回。"),
     ("（測試）違規下架的市集", "市集", "華山1914文化創意產業園區", 3, 4, 0,
      "merchant@example.com", "已下架", "測試用：活動取消，被管理員下架。"),
+    ("（測試）年度巨星巡迴演唱會", "音樂表演", "衛武營國家藝術文化中心", 45, 46, 2800,
+     "merchant@example.com", "上架中", "測試用：熱門演唱會，還沒開賣（開賣後很快就會賣完）。"),
+    ("（測試）跨年搖滾音樂祭", "音樂表演", "華山1914文化創意產業園區", 60, 61, 1800,
+     "merchant@example.com", "上架中", "測試用：還沒開賣，開賣時間在十天後。"),
+    ("（測試）已開賣的獨立樂團專場", "音樂表演", "華山1914文化創意產業園區", 25, 25, 900,
+     "merchant@example.com", "上架中", "測試用：已經開賣。"),
 ]
+# 開賣時間：(活動標題, 距今天數, 時間)
+SALE_STARTS = [
+    ("（測試）年度巨星巡迴演唱會", 2, "12:00"),
+    ("（測試）跨年搖滾音樂祭", 10, "11:00"),
+    ("（測試）已開賣的獨立樂團專場", -7, "12:00"),
+    ("（測試）管弦樂巡迴音樂會", -10, "10:00"),
+]
+REJECT_REASONS = {"（測試）被退回的講座": "活動資訊不完整（缺少講者或報名方式）；補充：請補上講者介紹與報名連結"}
 # (活動標題, 優惠類型, 說明, 特價, 開始距今天數或 None, 截止距今天數或 None)
 DISCOUNTS = [
     ("（測試）城市光影攝影展", "學生優惠", "憑學生證購票", 150, None, None),
@@ -75,7 +91,8 @@ DISCOUNTS = [
     ("（測試）手作皮革工作坊", "團體優惠", "三人同行每人", 1000, None, None),
     ("（測試）待審核的親子科學營", "學生優惠", "國高中生報名優惠", 1500, None, None),
 ]
-SAVES = [("student@example.com", "（測試）恐龍化石科普特展"), ("student@example.com", "（測試）寒假天文研習營")]
+SAVES = [("student@example.com", "（測試）恐龍化石科普特展"), ("student@example.com", "（測試）寒假天文研習營"),
+         ("student@example.com", "（測試）年度巨星巡迴演唱會")]
 
 
 def at(days, hhmm="00:00"):
@@ -88,19 +105,19 @@ def add_users(db, ids, users=USERS):
     """建立帳號（密碼都是 test1234），回傳 {信箱: 使用者編號}。"""
     password_hash = hash_password("test1234")
     return insert_rows(db, "UserTable", [
-        {"UserEmail": email, "UserName": name, "UserPasswordHash": password_hash, "UserRole": role,
-         "UserDefaultCity_FK": ids["city"][city]}
-        for name, email, role, city in users
+        {"UserEmail": email, "UserName": name, "UserPasswordHash": password_hash, "UserRole": role}
+        for name, email, role in users
     ])
 
 
 def seed(db, ids, user_ids=None):
     """塞入測試場館、活動、優惠。user_ids 沒給時另外建測試帳號與收藏；
-    之後的匯入程式可以傳入已經建好的帳號（{信箱: 編號}），這裡就不再建帳號與收藏。"""
+    build_db.py 會傳入已經建好的帳號（{信箱: 編號}），這裡就不再建帳號與收藏。"""
     city_ids, cat_ids, type_ids = ids["city"], ids["category"], ids["discount_type"]
     with_users = user_ids is None
     if with_users:
         user_ids = add_users(db, ids)
+    sale = {title: at(days, hhmm) for title, days, hhmm in SALE_STARTS}
     venue_ids = insert_rows(db, "VenueTable", [
         {"VenueName": n, "VenueCity_FK": city_ids[c], "VenueAddress": a} for n, c, a in VENUES
     ])
@@ -110,6 +127,7 @@ def seed(db, ids, user_ids=None):
             "EventStartDate": at(start), "EventEndDate": at(end), "EventOriginalPrice": price,
             "EventURL": "https://example.com/events", "EventDataSource": "測試資料",
             "EventOrganizer_FK": user_ids[organizer], "EventStatus": status, "EventDescription": desc,
+            "EventSaleStartDate": sale.get(title), "EventRejectReason": REJECT_REASONS.get(title),
         }
         for title, cat, venue, start, end, price, organizer, status, desc in EVENTS
     ])
