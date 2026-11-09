@@ -1,4 +1,4 @@
-"""資料表結構（8 張表）與基本對照資料。build_test_db.py 和之後的匯入程式共用。
+"""資料表結構（8 張表）與基本對照資料。build_test_db.py、build_db.py 共用。
 
 - 資料表、欄位型態、驗證規則、預設值、查閱欄位、關聯都照
   HW1_TableSchemaSketch_41411016E_修改版.xlsx（10/16 版，說明見 docs/schema.md）。
@@ -86,10 +86,6 @@ TABLES = {
                 "caption": "使用者角色", "required": True, "default": '"使用者"',
                 "rule": _in_rule(USER_ROLES), "rule_text": "使用者角色只能是 使用者、商家、管理員",
             }),
-            ("UserDefaultCity_FK", DB_LONG, None, {
-                "caption": "使用者預設縣市",
-                "lookup": ("CityTable", "CityID", "CityName"),
-            }),
         ],
         "unique": [["UserEmail"]],
         "index": ["UserRole"],
@@ -129,10 +125,22 @@ TABLES = {
                 "rule": _in_rule(EVENT_STATUSES), "rule_text": "審核狀態只能是 待審核、上架中、已退回、已下架",
             }),
             ("EventDescription", DB_MEMO, None, {"caption": "活動詳細說明"}),
+            # 售票平台開放購票的時間（熱門演唱會一開賣就賣完，要提早提醒）；空值 = 未提供或不用買票
+            ("EventSaleStartDate", DB_DATE, None, {"caption": "開賣時間", "format": "yyyy/mm/dd hh:nn"}),
+            # 管理員退回時選的理由，商家在後台看得到；商家修改送審後清空
+            ("EventRejectReason", DB_TEXT, 255, {"caption": "退回理由"}),
+            # 活動主視覺的網址（OPENTIX og:image 或文化部 imageUrl）；空值 = 沒有，網頁改顯示類別插圖
+            ("EventImageURL", DB_TEXT, 255, {"caption": "活動圖片網址"}),
+            # 場次時間，只用來顯示：開始|結束;開始|結束（yyyy-mm-ddThh:nn）。組內決定不加場次表，所以不拆成資料表
+            ("EventShowTimes", DB_MEMO, None, {"caption": "場次時間"}),
         ],
-        "table_rule": ("[EventEndDate]>=[EventStartDate]", "活動結束日期不能早於開始日期"),
+        # 開賣時間最晚是活動結束日當天（EventEndDate 存的是當天 0 點，所以比較「隔天 0 點」）
+        "table_rule": ("[EventEndDate]>=[EventStartDate]"
+                       " And ([EventSaleStartDate] Is Null Or [EventSaleStartDate]<[EventEndDate]+1)"
+                       " And ([EventRejectReason] Is Null Or [EventStatus]='已退回')",
+                       "活動結束日期不能早於開始日期；開賣時間不能晚於活動結束日期；只有已退回的活動才能填退回理由"),
         "index": ["EventCategory_FK", "EventVenue_FK", "EventTitle", "EventStartDate", "EventEndDate",
-                  "EventOriginalPrice", "EventOrganizer_FK", "EventStatus"],
+                  "EventOriginalPrice", "EventOrganizer_FK", "EventStatus", "EventSaleStartDate"],
     },
     "DiscountTypeTable": {
         "fields": [
@@ -195,7 +203,6 @@ TABLES = {
 # 其他關聯（縣市、類別、場館、優惠類型、上架商家）不允許刪除還在使用中的資料
 RELATIONS = [
     ("CityTable", "CityID", "VenueTable", "VenueCity_FK", False),
-    ("CityTable", "CityID", "UserTable", "UserDefaultCity_FK", False),
     ("CategoryTable", "CategoryID", "EventTable", "EventCategory_FK", False),
     ("VenueTable", "VenueID", "EventTable", "EventVenue_FK", False),
     ("UserTable", "UserID", "EventTable", "EventOrganizer_FK", False),
