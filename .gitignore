@@ -17,3 +17,6 @@ desktop.ini
 
 # 文化部原始下載檔（可用 etl/fetch_moc.py 重新下載）
 data/raw/
+
+# 正式資料庫由 db/build_db.py 從 CSV 產生
+db/events.accdb
