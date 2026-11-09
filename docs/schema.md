@@ -25,14 +25,47 @@ v2 提案中其他確認過的規則都保留：`EventOriginalPrice` 可空值�
 | `CategoryTable` | 活動類型 | `CategoryGroup`：學習類（展覽、講座、工作坊、科普展覽、研習營隊）／休閒類 |
 | `CityTable` | 22 個縣市 | `CityRegion`：北部、中部、南部、東部、離島 |
 | `VenueTable` | 場館 | 地址只記在這裡；`VenueCity_FK` |
-| `EventTable` | 活動（系統核心） | `EventVenue_FK`、`EventOrganizer_FK`（上架商家）、`EventStatus`（審核狀態） |
+| `EventTable` | 活動（系統核心） | `EventVenue_FK`、`EventOrganizer_FK`（上架商家）、`EventStatus`（審核狀態）、`EventSaleStartDate`（開賣時間）、`EventRejectReason`（退回理由） |
 | `DiscountTypeTable` | 優惠類型 | 學生優惠、早鳥優惠、敬老優惠、團體優惠 |
 | `DiscountTable` | 活動優惠 | `DiscountPrice`、`DiscountStartDate`、`DiscountEndDate` |
-| `UserTable` | 帳號 | `UserRole`：使用者、商家、管理員；`UserPasswordHash` |
+| `UserTable` | 帳號 | `UserName`（暱稱；商家是商家名稱）、`UserRole`：使用者、商家、管理員；`UserPasswordHash`。10/30 刪除 `UserDefaultCity_FK`（預設查詢縣市） |
 | `SaveTable` | 收藏紀錄 | `SaveUser_FK`＋`SaveEvent_FK` 複合唯一索引 |
 
-關係：縣市 1─N 場館 1─N 活動；類型 1─N 活動；活動 1─N 優惠 N─1 優惠類型；
+關係：縣市 1─N 場館 1─N 活動（縣市和使用者之間已經沒有關聯）；類型 1─N 活動；活動 1─N 優惠 N─1 優惠類型；
 使用者 N─M 活動（透過收藏紀錄）；商家（使用者）1─N 活動（上架）。
+
+## 10/30 新增的兩個欄位（仍是 8 張表）
+
+| 欄位 | 型態 | 為什麼需要 |
+|---|---|---|
+| `EventSaleStartDate` 開賣時間 | 日期／時間（到時、分），可空值 | 熱門演唱會一開賣就賣完，只記活動日期不夠。OPENTIX 的活動從活動頁的結構化資料（`availabilityStarts`）取得；商家上架時自己填。空值 = 未提供或不用買票 |
+| `EventRejectReason` 退回理由 | 短文字 255，可空值 | 管理員退回時勾選的理由＋補充說明，商家依理由修改。商家修改送審、或管理員改成其他狀態時清成空值 |
+
+退回理由的選項很少變動，所以放在後端（`api/main.py` 的 `REJECT_REASONS`），不另外建「退回理由類型表」，資料表維持 8 張。
+
+## 11/02 新增的兩個欄位（仍是 8 張表）
+
+| 欄位 | 型態 | 為什麼需要 |
+|---|---|---|
+| `EventImageURL` 活動圖片網址 | 短文字 255，可空值 | 活動卡片要有主視覺。OPENTIX 活動取自活動頁的 `og:image`（排除 `/default/` 預設圖），其次是文化部的 `imageUrl`；空值時網頁顯示類別插圖。只存網址、不存圖檔 |
+| `EventShowTimes` 場次時間 | 長文字，可空值 | 演唱會要看得到幾點開演。格式 `開始\|結束;開始\|結束`（`yyyy-mm-ddThh:nn`），取自文化部 `showInfo`。**只用來顯示**，查詢仍然用 `EventStartDate`、`EventEndDate`；組內決定不加場次表，所以不拆成資料表 |
+
+**免費判斷**（`etl/clean_moc.py` 的 `free_evidence`）：`EventOriginalPrice` 空值只代表資料沒有票價，網頁顯示「票價請見官網」（沒有官網時「票價未公布」），不當成免費。
+要有「免費參觀」「活動費用｜免費」「自由入場」這類明確說法才填 0；同一句是特定對象免票（兒童、長者、設籍…），或全文有寫售價，都不算。判斷依據列在 `data/review/moc_free_events.csv`。
+
+## 避免重複上架
+
+資料表不能直接加「活動名稱＋場館＋日期」的唯一索引：同一場館本來就會有同名的不同場次，而重複上架的名稱常常只差空白、
+括號或年份（「城市光影攝影展」和「城市光影 攝影展 2026」）。所以改成**審核時提醒管理員**：
+
+1. `sql/admin/similar_events.sql` 撈出和待審核活動**日期重疊**、已上架或待審核的其他活動；
+2. 後端 `api/similar.py` 算名稱相似度（去掉空白、標點後比相鄰兩字，0～100%），再看是不是同場館、同縣市、同網址；
+3. 名稱相似度 ≥ 80% 且同場館 → 很可能重複；≥ 60% 且同場館、≥ 70% 且同縣市、≥ 90% → 可能重複。
+
+同一套規則用在兩個地方：**商家按「送出審核」前**先提醒（只列已上架的活動和商家自己的活動，其他商家待審核的內容不公開），
+商家可以回去修改或仍要送出；**管理員審核時**再提醒一次（列出全部已上架、待審核的相似活動）。
+
+用目前 1,229 場上架中的活動（11/02 資料）試算，有 31 場和另一場「很可能重複」（多半是開放資料本身同一場活動登錄了好幾次）。
 
 ## 三種角色與審核狀態
 
@@ -40,7 +73,7 @@ v2 提案中其他確認過的規則都保留：`EventOriginalPrice` 可空值�
 |---|---|---|
 | 使用者 | 查詢、收藏 | 網頁註冊 |
 | 商家 | 上架活動與優惠、修改自己的活動、新增場館 | 網頁註冊（選「商家」） |
-| 管理員 | 審核（通過／退回）、違規下架、重新上架、統計 | 不開放註冊，由程式建立（測試帳號見 `db/build_test_db.py`） |
+| 管理員 | 審核（通過／退回並填理由）、違規下架、重新上架、統計 | 不開放註冊，由 `build_db.py` 建立 |
 
 Access 沒有使用者權限分級，角色權限由後端（`api/main.py` 的 `require_role`）檢查。
 
@@ -52,8 +85,8 @@ Access 沒有使用者權限分級，角色權限由後端（`api/main.py` 的 `
 ```
 
 - **查詢只顯示「上架中」而且 `EventEndDate >= Date()` 的活動**，所以活動一結束就查不到。
-- **自動下架**：Access 沒有排程，後端在伺服器啟動、打開商家或管理員後台時執行一個 UPDATE
-  （上架中 → 已下架）。**待實作**，SQL 檔名與寫法見 `sql/README.md`。
+- **自動下架**：Access 沒有排程，後端在伺服器啟動、打開商家或管理員後台時執行
+  `sql/admin/deactivate_ended_events.sql`（UPDATE 上架中 → 已下架）。
 - 開放資料、人工建檔的活動沒有商家，`EventOrganizer_FK` 一律填管理員帳號（`admin@example.com`），
   `EventDataSource` 記錄出處。
 
@@ -63,7 +96,7 @@ Access 沒有使用者權限分級，角色權限由後端（`api/main.py` 的 `
 |---|---|
 | CategoryTable | `CategoryGroup In ("學習類","休閒類")` |
 | CityTable | `CityRegion In ("北部","中部","南部","東部","離島")` |
-| EventTable | `EventEndDate >= EventStartDate`；`EventOriginalPrice >= 0`；`EventStatus In ("待審核","上架中","已退回","已下架")`，預設「待審核」 |
+| EventTable | `EventEndDate >= EventStartDate`；開賣時間不能晚於活動結束日（`EventSaleStartDate < EventEndDate + 1`）；退回理由只有「已退回」的活動能填；`EventOriginalPrice >= 0`；`EventStatus In ("待審核","上架中","已退回","已下架")`，預設「待審核」 |
 | DiscountTable | `DiscountPrice >= 0`；截止日不能早於開始日；**早鳥優惠（編號 2）一定要填截止日** |
 | UserTable | `UserEmail Like "*@*.*"`、不可重複；`UserRole In ("使用者","商家","管理員")`，預設「使用者」 |
 | SaveTable | `SaveDate` 預設 `Now()`；同一人不能重複收藏同一活動 |
