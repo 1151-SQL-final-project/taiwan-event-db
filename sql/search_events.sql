@@ -5,7 +5,7 @@
 -- 「目前有效的優惠」：開始日期空值或已開始，且截止日期空值（沒有截止日）或還沒過。
 SELECT e.EventID, e.EventTitle, c.CategoryName, c.CategoryGroup,
        e.EventStartDate, e.EventEndDate, e.EventOriginalPrice,
-       v.VenueName, ci.CityName, ci.CityRegion,
+       e.EventSaleStartDate, e.EventImageURL, e.EventURL, v.VenueName, ci.CityName, ci.CityRegion,
        (SELECT MIN(d.DiscountPrice)
           FROM DiscountTable AS d
          WHERE d.DiscountEvent_FK = e.EventID

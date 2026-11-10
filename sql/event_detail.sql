@@ -1,7 +1,8 @@
 -- 活動詳情：活動、類別、場館與縣市、上架商家。審核狀態也一起查，後端決定誰看得到
 SELECT e.EventID, e.EventTitle, e.EventCategory_FK, c.CategoryName, c.CategoryGroup,
        e.EventStartDate, e.EventEndDate, e.EventOriginalPrice, e.EventURL, e.EventDataSource,
-       e.EventStatus, e.EventDescription, e.EventOrganizer_FK, u.UserName AS OrganizerName,
+       e.EventStatus, e.EventRejectReason, e.EventSaleStartDate, e.EventImageURL, e.EventShowTimes, e.EventDescription,
+       e.EventOrganizer_FK, u.UserName AS OrganizerName, u.UserRole AS OrganizerRole,
        e.EventVenue_FK, v.VenueName, v.VenueAddress, ci.CityName, ci.CityRegion
 FROM (((EventTable AS e
 INNER JOIN CategoryTable AS c ON e.EventCategory_FK = c.CategoryID)
