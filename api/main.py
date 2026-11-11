@@ -9,33 +9,56 @@
 - 商家：上架、修改自己的活動與優惠，新增場館；新增或修改後一律變成「待審核」
 - 管理員：審核（通過／退回）、違規下架、重新上架、統計。管理員帳號不開放註冊
 Access 沒有使用者權限分級，所以角色權限都在這裡檢查（require_role）。
-
-目前完成：註冊登入（含角色）、搜尋、活動詳情、收藏。
-商家後台、管理員後台的 API 已經定好路徑和參數（回傳 501「尚未實作」），
-等 SQL 寫好（見 sql/README.md 的「還沒寫的查詢」）再接上。
 """
 import datetime as dt
 import urllib.parse
+from contextlib import asynccontextmanager
 
 import pyodbc
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 
 import db
 import security
-
-# TODO（自動下架）：伺服器啟動時執行一次 sql/admin/deactivate_ended_events.sql，
-# 把已結束、狀態還是上架中的活動改成已下架。可以用 FastAPI 的 lifespan 做。
-# 在那之前，搜尋本身已經只列還沒結束的活動（寫在 sql/search_events.sql）。
-app = FastAPI(title="探點 API")
 
 REGIONS = ["北部", "中部", "南部", "東部", "離島"]
 CATEGORY_GROUPS = ["學習類", "休閒類"]
 PENDING, LISTED, REJECTED, OFFLINE = "待審核", "上架中", "已退回", "已下架"
 STATUSES = [PENDING, LISTED, REJECTED, OFFLINE]
 USER, MERCHANT, ADMIN = "使用者", "商家", "管理員"
+# 管理員退回時可以勾選的理由（網頁彈窗的選項，也可以另外寫補充說明）
+REJECT_REASONS = [
+    "活動資訊不完整（缺少時間、地點或主辦單位）",
+    "活動日期或時間有誤",
+    "票價或優惠資訊有誤",
+    "場館或地址有誤",
+    "開賣時間有誤",
+    "活動網址無法開啟或不是官方網址",
+    "內容不適當或違反上架規範",
+    "重複上架",
+]
+
+
+def auto_offline(conn) -> int:
+    """自動下架：把已經結束、狀態還是上架中的活動改成已下架，回傳下架筆數。
+    Access 沒有排程，所以在伺服器啟動、打開商家或管理員後台時執行；
+    搜尋本身也只列還沒結束的活動，所以就算還沒執行，已結束的活動也查不到。"""
+    return db.execute(conn, "admin/deactivate_ended_events")
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    try:
+        with db.connect() as conn:
+            count = auto_offline(conn)
+        print(f"自動下架：{count} 場已結束的活動")
+    except Exception as exc:  # noqa: BLE001  資料庫還沒建立時不要讓伺服器起不來
+        print(f"自動下架略過：{exc}")
+    yield
+
+
+app = FastAPI(title="探點 API", lifespan=lifespan)
 
 
 # ---------- 錯誤處理 ----------
@@ -52,16 +75,16 @@ def access_error_message(exc: pyodbc.Error) -> str:
     return message.split(" (-")[0].strip()
 
 
-def not_implemented(what: str):
-    raise HTTPException(501, f"尚未實作：{what}")
-
-
 # ---------- 工具 ----------
 
 def google_maps_url(query: str) -> str:
     """Google 地圖搜尋連結。用場館名稱查會直接開到場館（地址只會標在地址的位置）；
     名稱查不到時（例如名稱含廳別、樓層），地址連結當備用。"""
     return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
+
+
+def day_start(value: dt.date | None) -> dt.datetime | None:
+    return dt.datetime.combine(value, dt.time.min) if value else None
 
 
 def user_id_from_header(authorization: str | None) -> int | None:
@@ -95,7 +118,7 @@ def optional_user(authorization: str | None = Header(default=None)) -> dict | No
 
 
 def require_role(*roles: str):
-    """限定角色的 API：例如 Depends(require_role("商家"))。角色不對回傳 403。"""
+    """限定角色的 API：例如 Depends(require_role("商家"))。"""
     def checker(user: dict = Depends(current_user)) -> dict:
         if user["UserRole"] not in roles:
             raise HTTPException(403, f"這個功能只開放給{'、'.join(roles)}")
@@ -115,12 +138,13 @@ def health():
 
 @app.get("/api/options")
 def options():
-    """搜尋頁、註冊頁需要的下拉選單內容。"""
+    """搜尋頁、註冊頁、商家上架頁需要的下拉選單內容。"""
     with db.connect() as conn:
         return {
             "regions": REGIONS,
             "category_groups": CATEGORY_GROUPS,
             "statuses": STATUSES,
+            "reject_reasons": REJECT_REASONS,
             "cities": db.run(conn, "list_cities"),
             "categories": db.run(conn, "list_categories"),
             "discount_types": db.run(conn, "list_discount_types"),
@@ -139,9 +163,21 @@ def search_events(
     category_group: str | None = None,
     discount_type_id: list[int] | None = Query(default=None),
     keyword: str | None = None,
+    free_only: bool = False,
+    phase: str | None = Query(default=None, pattern="^(ongoing|upcoming|early_bird)$"),
+    sort: str = Query(default="date", pattern="^(date|price|ending|sale)$"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
 ):
-    """依地區／縣市、日期區間、類別（或學習類／休閒類）、優惠類型、關鍵字搜尋。
-    只列出「上架中」而且還沒結束的活動（條件寫在 sql/search_events.sql）。"""
+    """依地區／縣市、日期區間、類別（或學習類／休閒類）、優惠類型、關鍵字搜尋上架中的活動。
+
+    只列出「上架中」而且還沒結束的活動（條件寫在 sql/search_events.sql）。
+    活動狀態 phase：ongoing 進行中（已經開始）；upcoming 即將開始／開賣（還沒開始，或還沒開賣）；
+    early_bird 早鳥即將截止（有 14 天內截止的早鳥優惠，和 early_bird_ending_soon.sql 相同）。
+    排序 sort：date 進行中的優先、再依開始日期；price 原價由低到高（票價未公布的排最後）；ending 快結束的排前面；
+    sale 還沒開賣的依開賣時間排前面，其他排後面。
+    回傳 {total 總筆數, page, page_size, items 這一頁的活動}。
+    """
     sql, _ = db.load_sql("search_events")
     conditions, params = [], []
 
@@ -159,7 +195,7 @@ def search_events(
         params.append(dt.datetime.combine(date_to, dt.time.max))
     if date_from:
         conditions.append("e.EventEndDate >= ?")
-        params.append(dt.datetime.combine(date_from, dt.time.min))
+        params.append(day_start(date_from))
     if category_id is not None:
         conditions.append("e.EventCategory_FK = ?")
         params.append(category_id)
@@ -179,198 +215,89 @@ def search_events(
         )
         params.extend(discount_type_id)
     if keyword:
-        conditions.append("e.EventTitle LIKE ?")
-        params.append(f"%{keyword}%")
+        conditions.append("(e.EventTitle LIKE ? OR v.VenueName LIKE ?)")
+        params += [f"%{keyword}%", f"%{keyword}%"]
+    if free_only:
+        conditions.append("e.EventOriginalPrice = 0")
+    if phase == "ongoing":
+        conditions.append("e.EventStartDate <= Date()")
+    elif phase == "upcoming":
+        conditions.append("(e.EventStartDate > Date() OR e.EventSaleStartDate > Now())")
+    elif phase == "early_bird":
+        conditions.append(
+            "EXISTS (SELECT 1 FROM DiscountTable AS d3"
+            " INNER JOIN DiscountTypeTable AS t3 ON d3.DiscountType_FK = t3.DiscountTypeID"
+            " WHERE d3.DiscountEvent_FK = e.EventID AND t3.DiscountTypeName = '早鳥優惠'"
+            " AND d3.DiscountEndDate BETWEEN Date() AND DateAdd('d', 14, Date()))"
+        )
 
-    sql += "".join(f"\n  AND {c}" for c in conditions) + "\nORDER BY e.EventStartDate, e.EventID"
+    order_by = {
+        # 進行中的活動當作「今天開始」，再依結束日排；常設展不會因為很早開始就一直排在最前面
+        "date": "IIf(e.EventStartDate < Date(), Date(), e.EventStartDate), e.EventEndDate, e.EventID",
+        "price": "IIf(e.EventOriginalPrice IS NULL, 1, 0), e.EventOriginalPrice, e.EventStartDate, e.EventID",
+        "ending": "e.EventEndDate, e.EventID",
+        "sale": "IIf(e.EventSaleStartDate > Now(), 0, 1), e.EventSaleStartDate, e.EventStartDate, e.EventID",
+    }[sort]
+    sql += "".join(f"\n  AND {c}" for c in conditions) + f"\nORDER BY {order_by}"
+
     with db.connect() as conn:
-        return db.query(conn, sql, params)
+        # Access 沒有 OFFSET，資料量不大（約一千多筆），直接取回再切出這一頁
+        all_events = db.query(conn, sql, params)
+    events = all_events[(page - 1) * page_size: page * page_size]
+    return {"total": len(all_events), "page": page, "page_size": page_size, "items": events}
+
+
+def load_event(conn, event_id: int) -> dict:
+    """活動詳情＋優惠＋地圖連結；找不到回傳 404。"""
+    rows = db.run(conn, "event_detail", event_id=event_id)
+    if not rows:
+        raise HTTPException(404, "找不到這個活動")
+    event = rows[0]
+    event["GoogleMapsURL"] = google_maps_url(event["VenueName"])
+    event["GoogleMapsAddressURL"] = google_maps_url(event["VenueAddress"])
+    event["IsEnded"] = event["EventEndDate"].date() < dt.date.today()
+    event["IsOnSale"] = event["EventSaleStartDate"] is None or event["EventSaleStartDate"] <= dt.datetime.now()
+    event["Discounts"] = db.run(conn, "event_discounts", event_id=event_id)
+    for d in event["Discounts"]:
+        d["IsValidNow"] = bool(d["IsValidNow"])  # Access 的 True 是 -1
+    return event
 
 
 @app.get("/api/events/{event_id}")
 def event_detail(event_id: int, user: dict | None = Depends(optional_user)):
-    """活動詳情、場館（附 Google 地圖連結）、優惠。
-    一般人只看得到上架中的活動；上架的商家和管理員可以看任何狀態（審核前預覽）。"""
+    """一般人只看得到上架中的活動；上架的商家和管理員可以看任何狀態（審核前預覽）。"""
     with db.connect() as conn:
-        rows = db.run(conn, "event_detail", event_id=event_id)
-        if not rows:
-            raise HTTPException(404, "找不到這個活動")
-        event = rows[0]
-        event["GoogleMapsURL"] = google_maps_url(event["VenueName"])
-        event["GoogleMapsAddressURL"] = google_maps_url(event["VenueAddress"])
-        event["Discounts"] = db.run(conn, "event_discounts", event_id=event_id)
-        for d in event["Discounts"]:
-            d["IsValidNow"] = bool(d["IsValidNow"])  # Access 的 True 是 -1
+        event = load_event(conn, event_id)
     can_preview = user and (user["UserRole"] == ADMIN or user["UserID"] == event["EventOrganizer_FK"])
     if event["EventStatus"] != LISTED and not can_preview:
         raise HTTPException(404, "找不到這個活動，或活動已經下架")
     return event
 
 
-# ---------- 註冊與登入 ----------
+# ---------- 統計、提醒 ----------
 
-class RegisterBody(BaseModel):
-    name: str = Field(min_length=1, max_length=20)
-    email: str = Field(min_length=3, max_length=50)
-    password: str = Field(min_length=8, max_length=128)
-    role: str = USER
-    default_city_id: int | None = None
-
-
-class LoginBody(BaseModel):
-    email: str
-    password: str
-
-
-@app.post("/api/auth/register", status_code=201)
-def register(body: RegisterBody):
-    if body.role not in (USER, MERCHANT):  # 管理員不開放註冊
-        raise HTTPException(400, "身分只能選「使用者」或「商家」")
-    email = body.email.strip().lower()
+@app.get("/api/stats")
+def stats():
+    """數據頁：各類別上架中的活動數（加總就是上架總數），以及熱門收藏排行。"""
     with db.connect() as conn:
-        if db.run(conn, "user_by_email", email=email):
-            raise HTTPException(409, "這個信箱已經註冊過了")
-        try:
-            db.execute(conn, "insert_user", name=body.name.strip(), email=email,
-                       password_hash=security.hash_password(body.password),
-                       role=body.role, default_city_id=body.default_city_id)
-        except pyodbc.Error as exc:  # 例如信箱格式不符合驗證規則、縣市編號不存在
-            raise HTTPException(400, access_error_message(exc)) from exc
-        user_id = db.last_id(conn)
-    return {"token": security.make_token(user_id), "user_id": user_id, "role": body.role}
+        return {
+            "categories": db.run(conn, "stats_events_by_category"),
+            "popular": db.run(conn, "popular_saves"),
+        }
 
 
-@app.post("/api/auth/login")
-def login(body: LoginBody):
+@app.get("/api/discounts/early-bird")
+def early_bird_ending_soon(days: int = Query(default=14, ge=1, le=90)):
+    """N 天內截止的早鳥優惠。"""
     with db.connect() as conn:
-        rows = db.run(conn, "user_by_email", email=body.email.strip().lower())
-    if not rows or not security.verify_password(body.password, rows[0]["UserPasswordHash"]):
-        raise HTTPException(401, "信箱或密碼錯誤")
-    user = rows[0]
-    return {"token": security.make_token(user["UserID"]), "user_id": user["UserID"], "role": user["UserRole"]}
+        return db.run(conn, "early_bird_ending_soon", days=days)
 
 
-@app.get("/api/me")
-def me(user: dict = Depends(current_user)):
-    return user
-
-
-# ---------- 使用者：收藏 ----------
-
-@app.get("/api/saves")
-def list_saves(user: dict = Depends(require_role(USER))):
+@app.get("/api/sales/upcoming")
+def sale_starting_soon(days: int = Query(default=14, ge=1, le=90)):
+    """N 天內開賣的活動（熱門演唱會一開賣就賣完，提早知道開賣時間）。"""
     with db.connect() as conn:
-        return db.run(conn, "list_saves", user_id=user["UserID"])
-
-
-@app.post("/api/saves/{event_id}", status_code=201)
-def add_save(event_id: int, user: dict = Depends(require_role(USER))):
-    with db.connect() as conn:
-        event = db.run(conn, "event_detail", event_id=event_id)
-        if not event or event[0]["EventStatus"] != LISTED:
-            raise HTTPException(404, "找不到這個活動，或活動已經下架")
-        try:
-            db.execute(conn, "insert_save", user_id=user["UserID"], event_id=event_id)
-        except pyodbc.IntegrityError as exc:  # 複合唯一索引擋下重複收藏
-            raise HTTPException(409, "已經收藏過這個活動") from exc
-    return {"saved": True}
-
-
-@app.delete("/api/saves/{event_id}")
-def remove_save(event_id: int, user: dict = Depends(require_role(USER))):
-    with db.connect() as conn:
-        db.execute(conn, "delete_save", user_id=user["UserID"], event_id=event_id)
-    return {"saved": False}
-
-
-# ---------- 商家後台（待實作） ----------
-# 路徑、參數、權限都已經定好，網頁可以先照這些格式做畫面。
-# 要用到的 SQL 見 sql/README.md 的「還沒寫的查詢」。
-
-class DiscountBody(BaseModel):
-    discount_type_id: int
-    price: int = Field(ge=0)
-    description: str | None = Field(default=None, max_length=100)
-    start_date: dt.date | None = None
-    end_date: dt.date | None = None  # 早鳥優惠必填（資料表驗證規則會擋）
-
-
-class EventBody(BaseModel):
-    title: str = Field(min_length=1, max_length=100)
-    category_id: int
-    venue_id: int
-    start_date: dt.date
-    end_date: dt.date
-    price: int | None = Field(default=None, ge=0)  # 全票；0 = 免費；空值 = 未公布
-    url: str | None = Field(default=None, max_length=255)
-    description: str | None = None
-    discounts: list[DiscountBody] = []
-
-
-class VenueBody(BaseModel):
-    name: str = Field(min_length=1, max_length=50)
-    city_id: int
-    address: str = Field(min_length=1, max_length=100)
-
-
-@app.get("/api/venues")
-def list_venues(_user: dict = Depends(require_role(MERCHANT, ADMIN))):
-    """場館清單（商家上架活動時選場館）。SQL：list_venues.sql"""
-    not_implemented("場館清單")
-
-
-@app.post("/api/venues", status_code=201)
-def create_venue(body: VenueBody, _user: dict = Depends(require_role(MERCHANT, ADMIN))):
-    """新增場館，回傳 {venue_id}。SQL：insert_venue.sql"""
-    not_implemented("新增場館")
-
-
-@app.get("/api/merchant/events")
-def merchant_events(user: dict = Depends(require_role(MERCHANT))):
-    """我上架的所有活動（各種審核狀態）。打開後台時順便執行自動下架。SQL：merchant/list_my_events.sql"""
-    not_implemented("商家：我的活動")
-
-
-@app.post("/api/merchant/events", status_code=201)
-def merchant_create_event(body: EventBody, user: dict = Depends(require_role(MERCHANT))):
-    """上架活動（含多筆優惠），一律「待審核」，回傳 {event_id, status}。
-    活動和優惠要在同一個交易裡（同一個 db.connect()），任何一筆失敗就全部取消。
-    SQL：merchant/insert_event.sql、insert_discount.sql"""
-    not_implemented("商家：上架活動")
-
-
-@app.put("/api/merchant/events/{event_id}")
-def merchant_update_event(event_id: int, body: EventBody, user: dict = Depends(require_role(MERCHANT))):
-    """修改自己的活動與優惠，改完回到「待審核」。只能改自己上架的（WHERE 同時比對商家編號）。
-    SQL：merchant/update_event.sql、merchant/delete_event_discounts.sql、insert_discount.sql"""
-    not_implemented("商家：修改活動")
-
-
-# ---------- 管理員後台（待實作） ----------
-
-class StatusBody(BaseModel):
-    status: str
-
-
-@app.get("/api/admin/events")
-def admin_events(status: str | None = None, keyword: str | None = None,
-                 _user: dict = Depends(require_role(ADMIN))):
-    """所有活動，可依審核狀態、關鍵字篩選。打開後台時先執行自動下架。SQL：admin/list_events.sql"""
-    not_implemented("管理員：活動清單")
-
-
-@app.post("/api/admin/events/{event_id}/status")
-def admin_set_status(event_id: int, body: StatusBody, _user: dict = Depends(require_role(ADMIN))):
-    """審核與下架。允許的變更：待審核 → 上架中（通過）／已退回（退回）；上架中 → 已下架（違規下架）；
-    已下架 → 上架中（重新上架，已結束的活動不行）。SQL：admin/update_event_status.sql"""
-    not_implemented("管理員：審核與下架")
-
-
-@app.get("/api/admin/stats")
-def admin_stats(_user: dict = Depends(require_role(ADMIN))):
-    """各審核狀態的活動數、各地區上架中的活動數、熱門收藏排行。
-    SQL：admin/stats_events_by_status.sql、stats_events_by_region.sql、popular_saves.sql"""
-    not_implemented("管理員：統計")
+        return db.run(conn, "sale_starting_soon", days=days)
 
 
 # 網頁：http://127.0.0.1:8000/ 直接開 web/index.html（放最後，才不會蓋掉 /api 路徑）
