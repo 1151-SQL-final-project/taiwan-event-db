@@ -7,14 +7,25 @@ import base64
 import hashlib
 import hmac
 import os
+import pathlib
 import secrets
 import time
 
 ITERATIONS = 200_000
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
 
-# Demo 用；正式部署請設定環境變數 EVENT_SECRET_KEY
-SECRET_KEY = os.environ.get("EVENT_SECRET_KEY", "dev-only-change-me").encode()
+def _load_secret_key() -> bytes:
+    """簽章金鑰：優先用環境變數 EVENT_SECRET_KEY；沒有的話第一次執行時隨機產生，
+    存在 api/.secret_key（已列在 .gitignore，不會上傳）。金鑰換掉後，舊的登入會失效。"""
+    if os.environ.get("EVENT_SECRET_KEY"):
+        return os.environ["EVENT_SECRET_KEY"].encode()
+    path = pathlib.Path(__file__).with_name(".secret_key")
+    if not path.exists():
+        path.write_text(secrets.token_urlsafe(32), encoding="utf-8")
+    return path.read_text(encoding="utf-8").strip().encode()
+
+
+SECRET_KEY = _load_secret_key()
 
 
 def _b64(data: bytes) -> str:
@@ -57,7 +68,8 @@ def read_token(token: str) -> int | None:
         user_id, expires, signature = token.split(".")
     except ValueError:
         return None
-    if not hmac.compare_digest(signature, _sign(f"{user_id}.{expires}")):
+    # 比對位元組：compare_digest 遇到含非 ASCII 字元的字串會丟 TypeError，偽造的 token 要當成無效，不是 500
+    if not hmac.compare_digest(signature.encode(), _sign(f"{user_id}.{expires}").encode()):
         return None
     if int(expires) < time.time():
         return None
