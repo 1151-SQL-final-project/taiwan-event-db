@@ -15,8 +15,29 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
+# 正式資料庫由 db/build_db.py 從 CSV 產生
+db/events.accdb
+
 # 文化部原始下載檔（可用 etl/fetch_moc.py 重新下載）
 data/raw/
 
-# 正式資料庫由 db/build_db.py 從 CSV 產生
-db/events.accdb
+# 登入簽章金鑰（自動產生）
+api/.secret_key
+
+# 商家上傳的活動圖片（執行時產生）
+web/uploads/
+
+# 測試截圖
+tests/screenshots/
+
+# 測試用的資料庫複本
+db/_test_*
+
+# Access 管理後台（由 db/build_admin_frontend.py 產生，連結到本機的 events.accdb 路徑）
+db/後台.accdb
+
+# 個人編輯器設定
+.vscode/
+
+# 線上示範版（demo/build_demo.py 產生）
+demo/site/
