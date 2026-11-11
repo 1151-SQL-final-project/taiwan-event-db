@@ -13,7 +13,11 @@ import pyodbc
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SQL_DIR = ROOT / "sql"
-DB_PATH = pathlib.Path(os.environ.get("EVENT_DB_PATH", ROOT / "db" / "test_events.accdb"))
+# 預設用 build_db.py 產生的正式資料；還沒產生時改用 build_test_db.py 的測試資料
+_default_db = ROOT / "db" / "events.accdb"
+if not _default_db.exists():
+    _default_db = ROOT / "db" / "test_events.accdb"
+DB_PATH = pathlib.Path(os.environ.get("EVENT_DB_PATH", _default_db))
 
 _PARAM = re.compile(r"\[@(\w+)\]")
 

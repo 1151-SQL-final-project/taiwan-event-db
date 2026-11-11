@@ -3,3 +3,6 @@ uvicorn==0.32.1
 pyodbc==5.2.0
 pywin32==308
 esprima==4.0.1
+# 以下只有跑測試才需要
+playwright==1.48.0   # tests/e2e_web.py（用電腦上的 Edge，不用另外下載瀏覽器）
+pillow==11.0.0       # tests/verify_access_frontend.py 的截圖
