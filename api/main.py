@@ -21,12 +21,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import db
-import security
 import similar
 from common import (ADMIN, IMAGE_TYPES, LISTED, MERCHANT, OFFLINE, PENDING, REJECTED, STATUSES, UPLOAD_DIR,
-                    UPLOAD_MAX_BYTES, USER, access_error_message, auto_offline, current_user, day_start, load_event,
-                    require_role)
-from routes import public
+                    UPLOAD_MAX_BYTES, access_error_message, auto_offline, day_start, load_event, require_role)
+from routes import auth, public, saves
 
 
 @asynccontextmanager
@@ -50,111 +48,8 @@ def database_not_found(_request, exc):
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
-app.include_router(public.router)
-
-
-# ---------- 註冊與登入 ----------
-
-class RegisterBody(BaseModel):
-    name: str = Field(min_length=1, max_length=20)
-    email: str = Field(min_length=3, max_length=50)
-    password: str = Field(min_length=8, max_length=128)
-    role: str = USER
-
-
-class LoginBody(BaseModel):
-    email: str
-    password: str
-
-
-@app.post("/api/auth/register", status_code=201)
-def register(body: RegisterBody):
-    if body.role not in (USER, MERCHANT):  # 管理員不開放註冊
-        raise HTTPException(400, "身分只能選「使用者」或「商家」")
-    email = body.email.strip().lower()
-    with db.connect() as conn:
-        if db.run(conn, "user_by_email", email=email):
-            raise HTTPException(409, "這個信箱已經註冊過了")
-        try:
-            db.execute(conn, "insert_user", name=body.name.strip(), email=email,
-                       password_hash=security.hash_password(body.password),
-                       role=body.role)
-        except pyodbc.Error as exc:  # 例如信箱格式不符合驗證規則、縣市編號不存在
-            raise HTTPException(400, access_error_message(exc)) from exc
-        user_id = db.last_id(conn)
-    return {"token": security.make_token(user_id), "user_id": user_id, "role": body.role}
-
-
-@app.post("/api/auth/login")
-def login(body: LoginBody):
-    with db.connect() as conn:
-        rows = db.run(conn, "user_by_email", email=body.email.strip().lower())
-    if not rows or not security.verify_password(body.password, rows[0]["UserPasswordHash"]):
-        raise HTTPException(401, "信箱或密碼錯誤")
-    user = rows[0]
-    return {"token": security.make_token(user["UserID"]), "user_id": user["UserID"], "role": user["UserRole"]}
-
-
-@app.get("/api/me")
-def me(user: dict = Depends(current_user)):
-    return user
-
-
-class NameBody(BaseModel):
-    name: str = Field(min_length=1, max_length=20)
-
-
-@app.put("/api/me")
-def update_my_name(body: NameBody, user: dict = Depends(current_user)):
-    """修改名稱：使用者的暱稱、商家的商家名稱（活動頁顯示的商家名稱）。"""
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(400, "名稱不能空白")
-    with db.connect() as conn:
-        db.execute(conn, "update_user_name", name=name, user_id=user["UserID"])
-        return db.run(conn, "user_by_id", user_id=user["UserID"])[0]
-
-
-# ---------- 使用者：收藏 ----------
-
-@app.get("/api/saves")
-def list_saves(user: dict = Depends(require_role(USER))):
-    with db.connect() as conn:
-        return db.run(conn, "list_saves", user_id=user["UserID"])
-
-
-@app.get("/api/saves/reminders")
-def save_reminders(days: int = Query(default=7, ge=1, le=90), user: dict = Depends(require_role(USER))):
-    """我收藏的活動中，N 天內就要截止的優惠。"""
-    with db.connect() as conn:
-        return db.run(conn, "save_reminders", user_id=user["UserID"], days=days)
-
-
-@app.get("/api/saves/sale-reminders")
-def save_sale_reminders(days: int = Query(default=14, ge=1, le=90), user: dict = Depends(require_role(USER))):
-    """我收藏的活動中，N 天內就要開賣的。"""
-    with db.connect() as conn:
-        return db.run(conn, "save_sale_reminders", user_id=user["UserID"], days=days)
-
-
-@app.post("/api/saves/{event_id}", status_code=201)
-def add_save(event_id: int, user: dict = Depends(require_role(USER))):
-    with db.connect() as conn:
-        event = db.run(conn, "event_detail", event_id=event_id)
-        if not event or event[0]["EventStatus"] != LISTED:
-            raise HTTPException(404, "找不到這個活動，或活動已經下架")
-        try:
-            db.execute(conn, "insert_save", user_id=user["UserID"], event_id=event_id)
-        except pyodbc.IntegrityError as exc:  # 複合唯一索引擋下重複收藏
-            raise HTTPException(409, "已經收藏過這個活動") from exc
-    return {"saved": True}
-
-
-@app.delete("/api/saves/{event_id}")
-def remove_save(event_id: int, user: dict = Depends(require_role(USER))):
-    with db.connect() as conn:
-        db.execute(conn, "delete_save", user_id=user["UserID"], event_id=event_id)
-    return {"saved": False}
+for module in (public, auth, saves):
+    app.include_router(module.router)
 
 
 # ---------- 商家後台 ----------
