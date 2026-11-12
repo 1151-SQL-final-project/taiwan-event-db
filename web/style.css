@@ -206,6 +206,18 @@ h2 { font-size: 1.15rem; }
 .description { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); }
 .description.clamped { max-height: 16em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 
+/* ---------- 登入 ---------- */
+.auth { max-width: 420px; margin: 20px auto; padding: 24px; display: grid; gap: 16px; }
+/* 示範帳號：一列一個，左邊角色、右邊信箱，點了直接登入 */
+.demo-login { display: grid; gap: 8px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.demo-account { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; text-align: left; }
+.demo-account .small { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 10px; padding: 4px; }
+.tabs button { border: 0; background: none; padding: 8px; border-radius: 8px; cursor: pointer; color: var(--text-2); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+.form { display: grid; gap: 12px; }
+.error { color: var(--danger); font-size: .9rem; min-height: 1.2em; margin: 0; }
+
 .chip-rows { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .notice { background: var(--warn-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
 /* ---------- 其他 ---------- */
@@ -274,12 +286,12 @@ h2 { font-size: 1.15rem; }
 .btn:active:not([disabled]) { transform: scale(.97); }
 .btn.pop { animation: pop .45s ease-out; }
 .toast:not([hidden]) { animation: toast-in .3s cubic-bezier(.2, .8, .2, 1); }
-.filters { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
+.card.auth, .filters { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   #app > *, .home-art, .home-name, .home-hero .eyebrow, .home-hero .lead, .home-actions, .hero h1, .hero p,
   .grid > .event-card, .strip-item, .detail-head, .detail > :first-child > *, .side > *, .detail-cover img,
-  .btn.pop, .toast, .filters { animation: none !important; }
+  .btn.pop, .toast, .card.auth, .filters { animation: none !important; }
   .event-card, .strip-item, .btn, .event-thumb img, .event-thumb .thumb-art, .home-art img { transition: none; }
   .event-card:hover, .strip-item:hover, .event-card:hover .event-thumb img, .event-card:hover .event-thumb .thumb-art { transform: none; }
 }
