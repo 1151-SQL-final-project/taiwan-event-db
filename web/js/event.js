@@ -1,4 +1,4 @@
-// 活動詳情：票價、優惠、場次。
+// 活動詳情：票價、優惠、場次、收藏。
 // 所有 js/*.js 是一般的 <script>，依 index.html 的順序載入，彼此共用最上層的變數與函式。
 
 // ---------- 活動詳情 ----------
@@ -12,8 +12,10 @@ async function viewEvent(id) {
   const valid = e.Discounts.filter((d) => d.IsValidNow);
   const best = valid.length ? Math.min(...valid.map((d) => d.DiscountPrice)) : null;
   const p = priceView(e.EventOriginalPrice, best, e.EventURL);
+  const saved = savedIds.has(e.EventID);
   const longText = (e.EventDescription || "").length > 600;
   const isOwner = me && me.UserID === e.EventOrganizer_FK && me.UserRole === "商家";
+  const canSave = !me || me.UserRole === "使用者";
   const back = isOwner ? ["#/merchant", "← 回商家後台"] : me?.UserRole === "管理員" && e.EventStatus !== "上架中"
     ? ["#/admin", "← 回管理員後台"] : ["#/search", "← 回搜尋結果"];
 
@@ -49,8 +51,9 @@ async function viewEvent(id) {
             ${p.old ? `<span class="price-old">原價 ${esc(p.old)}</span>` : ""}</div>
           ${e.EventSaleStartDate ? `<div class="sale-info ${notOnSale(e.EventSaleStartDate) ? "upcoming" : ""}">
             ${notOnSale(e.EventSaleStartDate) ? `🎫 <b>${esc(fmtTime(e.EventSaleStartDate))} 開賣</b>
-              <div class="small">${saleCountdown(e.EventSaleStartDate)}</div>`
+              <div class="small">${saleCountdown(e.EventSaleStartDate)}${canSave ? "，收藏後會在「我的收藏」提醒你" : ""}</div>`
               : `<span class="small">已開賣（${esc(fmtTime(e.EventSaleStartDate))} 起）</span>`}</div>` : ""}
+          ${canSave && e.EventStatus === "上架中" ? `<button class="btn ${saved ? "btn-saved" : "btn-primary"}" id="save-btn">${saved ? "✓ 已收藏" : "☆ 收藏活動"}</button>` : ""}
           ${isOwner ? `<a class="btn btn-primary" href="#/merchant/edit/${e.EventID}">修改活動</a>` : ""}
           ${e.EventURL ? `<a class="btn" href="${esc(e.EventURL)}" target="_blank" rel="noopener">活動官網 ↗</a>` : ""}
         </section>
@@ -76,6 +79,7 @@ async function viewEvent(id) {
     app.querySelectorAll(".session-list [hidden]").forEach((li) => { li.hidden = false; });
     ev.target.remove();
   });
+  document.getElementById("save-btn")?.addEventListener("click", () => toggleSave(e.EventID));
   window.scrollTo(0, 0);
 }
 
@@ -108,4 +112,29 @@ function saleCountdown(iso) {
   const ms = toDate(iso) - new Date();
   const days = Math.floor(ms / 86400000), hours = Math.floor((ms % 86400000) / 3600000);
   return days > 0 ? `還有 ${days} 天 ${hours} 小時` : hours > 0 ? `還有 ${hours} 小時` : "快開賣了";
+}
+
+async function toggleSave(eventId) {
+  if (!me) { location.hash = "#/login"; viewLogin.returnTo = `#/event/${eventId}`; toast("登入後就能收藏"); return; }
+  const btn = document.getElementById("save-btn");
+  btn.disabled = true;
+  try {
+    if (savedIds.has(eventId)) {
+      await api(`/api/saves/${eventId}`, { method: "DELETE" });
+      savedIds.delete(eventId);
+      toast("已取消收藏");
+    } else {
+      await api(`/api/saves/${eventId}`, { method: "POST" });
+      savedIds.add(eventId);
+      toast("已加入收藏");
+    }
+    const saved = savedIds.has(eventId);
+    btn.className = `btn ${saved ? "btn-saved" : "btn-primary"} pop`;
+    btn.textContent = saved ? "✓ 已收藏" : "☆ 收藏活動";
+    btn.addEventListener("animationend", () => btn.classList.remove("pop"), { once: true });
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
