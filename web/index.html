@@ -2,9 +2,8 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>探點</title>
-  <!-- 首頁只放 logo、名稱、介紹與兩個按鈕；找活動、登入目前都在串接測試頁 test.html，正式頁面做好後改連過去 -->
   <meta name="theme-color" content="#203a55">
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,33 +14,26 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a href="index.html" class="brand"><img class="brand-logo" src="logo.png" alt="" width="34" height="34">探點</a>
+      <a href="#/" class="brand"><img class="brand-logo" src="logo.png" alt="" width="34" height="34">探點</a>
       <nav class="nav" aria-label="主選單">
-        <a href="index.html" aria-current="page">首頁</a>
-        <a href="test.html">找活動（串接測試頁）</a>
-        <a href="/docs">API 測試頁</a>
+        <a href="#/login" data-nav="login" id="nav-account">登入</a>
       </nav>
     </div>
   </header>
 
-  <main class="container">
-    <section class="home-hero">
-      <div class="home-art"><img src="logo.png" alt="探點 logo"></div>
-      <h1 class="home-name">探點</h1>
-      <p class="eyebrow">SpotGo</p>
-      <p class="lead">把全臺灣的展覽、講座、工作坊與表演集中在一起。<br>
-        依地區、日期、類型與優惠查詢活動，<br>學生優惠、早鳥票直接標出來，看到喜歡的就收藏起來。</p>
-      <div class="home-actions">
-        <a class="btn btn-primary" href="test.html#search">找活動</a>
-        <a class="btn" href="test.html#account">登入／註冊</a>
-      </div>
-    </section>
-  </main>
+  <main id="app" class="container" tabindex="-1"></main>
 
   <footer class="footer container">
-    <p>活動資料來源：文化部「全國藝文活動資訊系統」開放資料（政府資料開放授權條款－第1版）與人工建檔。</p>
+    <p>活動資料來源：文化部「全國藝文活動資訊系統」開放資料（政府資料開放授權條款－第1版）與人工建檔。
+      票價與優惠以各活動官網公告為準。</p>
     <p>SQL與資料庫設計 115-1 期末專題・探點</p>
   </footer>
 
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <!-- 網頁程式依序載入（共用最上層的變數與函式）；app.js 是路由與啟動，放最後 -->
+  <script src="js/core.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
