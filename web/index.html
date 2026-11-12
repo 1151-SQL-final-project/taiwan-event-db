@@ -16,6 +16,7 @@
     <div class="topbar-inner">
       <a href="#/" class="brand"><img class="brand-logo" src="logo.png" alt="" width="34" height="34">探點</a>
       <nav class="nav" aria-label="主選單">
+        <a href="#/" data-nav="home" data-roles="guest,使用者,管理員">首頁</a>
         <a href="#/login" data-nav="login" id="nav-account">登入</a>
       </nav>
     </div>
@@ -34,6 +35,8 @@
 
   <!-- 網頁程式依序載入（共用最上層的變數與函式）；app.js 是路由與啟動，放最後 -->
   <script src="js/core.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/home.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

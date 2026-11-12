@@ -1,19 +1,20 @@
 // 探點：單頁式網頁。網址 # 後面決定顯示哪一頁：
+//   #/ 首頁
 // 三種角色：使用者（查詢、收藏）、商家（上架、修改自己的活動）、管理員（審核、下架、統計）。
 // 畫面上依角色顯示不同選單，但真正的權限檢查在後端（api/common.py 的 require_role）。
 //
 // 網頁程式分成 web/js/ 裡的幾個檔案（index.html 依序載入）：
-//   core.js 共用工具與 API　app.js（本檔）路由與啟動，最後載入
+//   core.js 共用工具與 API　cards.js 活動卡片與插圖　home.js　app.js（本檔）路由與啟動，最後載入
 
 // ---------- 路由 ----------
 
-const routes = [];
+const routes = [
+  [/^#\/?$/, viewHome, "home"],
+];
 
 async function router() {
   const hash = location.hash || "#/";
-  const route = routes.find(([re]) => re.test(hash)) ?? routes[0];
-  if (!route) return; // 還沒有任何頁面
-  const [pattern, view, nav] = route;
+  const [pattern, view, nav] = routes.find(([re]) => re.test(hash)) ?? routes[0];
   document.querySelectorAll("[data-nav]").forEach((a) => a.dataset.nav === nav ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   try {
     await view(...(hash.match(pattern) ?? []).slice(1));
