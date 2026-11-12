@@ -1,15 +1,17 @@
 // 探點：單頁式網頁。網址 # 後面決定顯示哪一頁：
-//   #/ 首頁
+//   #/ 首頁　#/search 找活動
 // 三種角色：使用者（查詢、收藏）、商家（上架、修改自己的活動）、管理員（審核、下架、統計）。
 // 畫面上依角色顯示不同選單，但真正的權限檢查在後端（api/common.py 的 require_role）。
 //
 // 網頁程式分成 web/js/ 裡的幾個檔案（index.html 依序載入）：
-//   core.js 共用工具與 API　cards.js 活動卡片與插圖　home.js　app.js（本檔）路由與啟動，最後載入
+//   core.js 共用工具與 API　cards.js 活動卡片與插圖　home.js　search.js
+//   app.js（本檔）路由與啟動，最後載入
 
 // ---------- 路由 ----------
 
 const routes = [
   [/^#\/?$/, viewHome, "home"],
+  [/^#\/search$/, viewSearch, "search"],
 ];
 
 async function router() {
