@@ -120,3 +120,7 @@ function requireRole(role, returnTo) {
     <a class="btn btn-primary" href="#/login">${me ? "切換帳號" : "登入／註冊"}</a></div>`;
   return false;
 }
+
+const countsBar = (counts, current) => `<div class="status-tabs" role="tablist">${["", ...Object.keys(counts)].map((s) => `
+  <button type="button" role="tab" data-status="${esc(s)}" aria-selected="${s === current}">
+    ${s ? esc(s) : "全部"} <span class="count">${s ? counts[s] : Object.values(counts).reduce((a, b) => a + b, 0)}</span></button>`).join("")}</div>`;
