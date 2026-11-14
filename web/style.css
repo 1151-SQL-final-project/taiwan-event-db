@@ -340,6 +340,18 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 /* ---------- 商家、管理員後台 ---------- */
 .chip-rows { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .notice { background: var(--warn-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+.form-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.field.wide { grid-column: 1 / -1; }
+textarea.input { resize: vertical; font: inherit; }
+.venue-new { border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 10px; }
+.venue-new[open] { display: grid; }
+.venue-new summary { cursor: pointer; color: var(--accent-ink); }
+.venue-new .btn { justify-self: start; margin-top: 10px; }
+.discount-row { display: grid; gap: 10px; align-items: end; padding: 12px 0; border-top: 1px solid var(--line);
+  grid-template-columns: 1.1fr .8fr 2fr 1.2fr 1.2fr auto; }
+.discount-row .field.wide { grid-column: auto; }
+@media (max-width: 860px) { .discount-row { grid-template-columns: 1fr 1fr; } .discount-row .field.wide { grid-column: 1 / -1; } }
+#add-discount { margin-top: 10px; }
 .save-title { font-weight: 600; color: var(--text-3); }
 
 /* ---------- 其他 ---------- */
@@ -361,6 +373,25 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .reminder-sale { background: var(--accent-soft); }
 .reminder-sale b { color: var(--accent-ink); }
 
+/* 退回理由 */
+/* 商家後台：顯眼的上架入口、精簡清單（點一下展開） */
+.publish-card { display: flex; gap: 18px; align-items: center; margin: 4px 0 26px; padding: 22px 26px; border-radius: var(--radius);
+  background: var(--accent); color: #fff; text-decoration: none; box-shadow: 0 8px 24px rgb(32 58 85 / .18);
+  transition: transform .2s ease, box-shadow .2s ease; }
+.publish-card:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgb(32 58 85 / .24); }
+.publish-plus { flex-shrink: 0; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  background: #fff; color: var(--accent); font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.publish-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.publish-text b { font-family: var(--font-display); font-size: 1.45rem; }
+.publish-text span { color: rgb(255 255 255 / .78); font-size: .92rem; }
+.publish-arrow { font-size: 1.5rem; transition: transform .2s ease; }
+.publish-card:hover .publish-arrow { transform: translateX(4px); }
+.form-head { display: flex; gap: 12px 20px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+.form-head h1 { margin-bottom: 0; }
+/* 帶入過去活動數據：選單在左、清除全部在右，同一行 */
+.copy-from { display: flex; align-items: center; gap: 12px; width: min(440px, 100%); }
+.copy-from .input { flex: 1; min-width: 0; }
+.copy-from .btn-text { flex: none; }
 .list-bar { margin: 0; }
 /* 商家後台總覽：退回提示、活動總數與最多收藏、四個狀態（點了才在下面列出活動） */
 .m-alert { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; margin: 0 0 26px; padding: 18px 24px;
@@ -402,13 +433,19 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .m-card h3 a { color: inherit; text-decoration: none; }
 .m-card h3 a:hover { color: var(--accent-ink); }
 .m-card .price-row { align-items: center; }
+.m-edit { margin-left: auto; padding: 5px 14px; }
+.form-title { min-width: 0; flex: 1 1 320px; }
+.form-title p { margin: 4px 0 0; }
 @media (max-width: 640px) {
+  .publish-card { padding: 18px; gap: 14px; }
   .m-alert { padding: 16px 18px; }
   .m-overview { grid-template-columns: minmax(0, 1fr); }
   .m-stat { min-height: 0; padding: 16px 18px; }
   .m-status { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .m-status .m-pick { padding: 14px 16px; }
 }
+.reject-note { margin-top: 6px; padding: 8px 12px; border-radius: 10px; background: var(--deal-soft); color: var(--deal); }
+
 /* ---------- 動畫：換頁淡入、卡片依序浮現、滑鼠移上去的回饋（系統設定減少動態效果時全部關掉） ---------- */
 #app > :not(.skeleton) { animation: page-in .35s ease-out both; }
 @keyframes page-in { from { opacity: 0; } }
@@ -459,14 +496,17 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .btn.pop { animation: pop .45s ease-out; }
 .toast:not([hidden]) { animation: toast-in .3s cubic-bezier(.2, .8, .2, 1); }
 .card.auth, .filters { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
+.publish-card { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
 /* 商家後台切換狀態只是顯示／隱藏，不播浮現動畫，才不會閃 */
 .grid.m-grid > .event-card { animation: none; }
+.venue-overlap:not([hidden]) { animation: rise-in .3s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
   #app > *, .home-art, .home-name, .home-hero .eyebrow, .home-hero .lead, .home-actions, .hero h1, .hero p,
   .grid > .event-card, .strip-item, .save-row, .reminder, .detail-head, .detail > :first-child > *, .side > *, .detail-cover img,
-  .btn.pop, .toast, .card.auth, .filters { animation: none !important; }
-  .m-pick, .m-top-link { transition: none; }
+  .btn.pop, .toast, .card.auth, .filters,
+  .publish-card, .venue-overlap { animation: none !important; }
+  .publish-card, .publish-arrow, .m-pick, .m-top-link { transition: none; }
   .m-pick:hover, .m-top-link:hover { transform: none; }
   .event-card, .strip-item, .btn, .event-thumb img, .event-thumb .thumb-art, .home-art img { transition: none; }
   .event-card:hover, .strip-item:hover, .event-card:hover .event-thumb img, .event-card:hover .event-thumb .thumb-art { transform: none; }

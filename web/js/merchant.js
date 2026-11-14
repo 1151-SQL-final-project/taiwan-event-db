@@ -1,12 +1,13 @@
-// 商家後台：總覽、我的活動。
+// 商家後台：總覽、我的活動、上架與修改表單。
 // 所有 js/*.js 是一般的 <script>，依 index.html 的順序載入，彼此共用最上層的變數與函式。
 
 // ---------- 商家後台 ----------
 
 const merchant = { status: "" };
 
-// 商家後台：最上面是退回提示，接著是活動總數、最多收藏和四個狀態；
+// 商家後台：最上面是「上架新活動」和退回提示，接著是活動總數、最多收藏和四個狀態；
 // 預設不列活動，點活動總數（全部）或狀態才在下面列出，再點一次收起。活動都用和找活動一樣的卡片（一行三張），被退回的換成提示的顏色；
+// 退回理由在修改活動的表單最上面
 // 看全部時把要處理的排前面：已退回 → 待審核 → 上架中 → 已下架；同一個狀態裡，開賣或早鳥截止近的排前面
 const MERCHANT_ALL = "全部";
 const MERCHANT_ORDER = { "已退回": 0, "待審核": 1, "上架中": 2, "已下架": 3 };
@@ -36,6 +37,11 @@ async function viewMerchant() {
   const pick = (s) => `aria-pressed="${s === merchant.status}"`;
   app.innerHTML = `
     <h1>商家後台</h1>
+    <a class="publish-card" href="#/merchant/new">
+      <span class="publish-plus" aria-hidden="true">＋</span>
+      <span class="publish-text"><b>上架新活動</b><span>填寫活動資料送出審核，也可以從過去的活動帶入資料</span></span>
+      <span class="publish-arrow" aria-hidden="true">→</span>
+    </a>
     ${counts["已退回"] ? `<button type="button" class="m-alert">
       <span class="m-alert-text"><b>⚠ 有 ${counts["已退回"]} 場活動被退回</b><span>修改後可以重新送審</span></span></button>` : ""}
     <h2 class="list-bar">我的活動</h2>
@@ -81,7 +87,7 @@ async function viewMerchant() {
   applyStatus();
 }
 
-// 和找活動的活動卡片一樣（圖片、類別、票價、日期、場館），左上角加審核狀態，下方加收藏數
+// 和找活動的活動卡片一樣（圖片、類別、票價、日期、場館），左上角加審核狀態，下方加收藏數與操作按鈕
 function merchantCard(e) {
   const p = priceView(e.EventOriginalPrice, e.BestDiscountPrice, e.EventURL);
   return `<article class="card event-card m-card m-item ${e.EventStatus === "已退回" ? "m-card-rejected" : ""}" data-event-status="${esc(e.EventStatus)}">
@@ -98,7 +104,174 @@ function merchantCard(e) {
       <div class="price-row">
         <span class="price ${p.muted ? "muted" : ""}">${esc(p.main)}</span>
         ${p.old ? `<span class="price-old">${esc(p.old)}</span>` : ""}
+        ${e.EventStatus === "已下架" ? "" : `<a class="btn m-edit" href="#/merchant/edit/${e.EventID}">修改</a>`}
       </div>
     </div>
   </article>`;
+}
+
+function discountRow(opts, d = {}) {
+  return `<div class="discount-row" data-discount>
+    <label class="field"><span>優惠類型</span><select class="input" name="d_type">${opts.discount_types.map((t) =>
+      `<option value="${t.DiscountTypeID}" ${t.DiscountTypeID === d.DiscountType_FK ? "selected" : ""}>${esc(t.DiscountTypeName)}</option>`).join("")}</select></label>
+    <label class="field"><span>優惠價</span><input class="input" name="d_price" type="number" min="0" required value="${d.DiscountPrice ?? ""}"></label>
+    <label class="field wide"><span>說明</span><input class="input" name="d_desc" maxlength="100" placeholder="例如：憑學生證購票" value="${esc(d.DiscountDescription ?? "")}"></label>
+    <label class="field"><span>開始日期（可空白）</span><input class="input" name="d_start" type="date" value="${isoDay(d.DiscountStartDate)}"></label>
+    <label class="field"><span>截止日期（早鳥必填）</span><input class="input" name="d_end" type="date" value="${isoDay(d.DiscountEndDate)}"></label>
+    <button type="button" class="btn-text" data-remove aria-label="刪除這筆優惠">刪除</button>
+  </div>`;
+}
+
+// id：修改這場活動；沒有 id 是上架新活動，可以從自己過去的活動帶入日期以外的資料
+async function viewEventForm(id) {
+  const here = routeNow();
+  if (!requireRole("商家", here)) return;
+  app.innerHTML = '<div class="skeleton" style="min-height: 320px"></div>';
+  const [opts, venues, e, mine] = await Promise.all([getOptions(), api("/api/venues"),
+    id ? api(`/api/events/${id}`) : null, id ? [] : api("/api/merchant/events").catch(() => [])]);
+  if (routeNow() !== here) return;
+  const venueOptions = (list, selected) => list.map((v) =>
+    `<option value="${v.VenueID}" ${v.VenueID === selected ? "selected" : ""}>${esc(v.CityName)}・${esc(v.VenueName)}</option>`).join("");
+  app.innerHTML = `
+    <a class="back btn-text" href="#/merchant">← 回商家後台</a>
+    <div class="form-head">
+      <div class="form-title">
+        <h1>${id ? "修改活動" : "上架新活動"}</h1>
+        ${id ? `<p class="muted">目前狀態：${statusTag(e.EventStatus)}</p>` : ""}
+      </div>
+      ${mine.length ? `<div class="copy-from">
+        <select class="input" id="copy-from" aria-label="帶入過去活動數據（日期以外的資料會自動填好）">
+          <option value="" disabled selected hidden>帶入過去活動數據</option>${mine.map((m) =>
+          `<option value="${m.EventID}">${esc(m.EventTitle)}・${fmtDay(m.EventStartDate, true)}</option>`).join("")}</select>
+        <button type="button" class="btn-text" id="clear-form">清除全部</button>
+      </div>` : ""}
+    </div>
+    ${id && e?.EventStatus === "已退回" ? `<div class="reject-note"><b>退回理由</b>：${esc(e.EventRejectReason || "未註明理由")}</div>` : ""}
+    <form class="card panel form" id="event-form">
+      <label class="field"><span>活動名稱</span><input class="input" name="title" required maxlength="100" value="${esc(e?.EventTitle ?? "")}"></label>
+      <div class="form-grid">
+        <label class="field"><span>類別</span><select class="input" name="category_id" required>${categoryOptions(opts, e?.EventCategory_FK)}</select></label>
+        <label class="field"><span>場館</span><select class="input" name="venue_id" id="venue-select" required>
+          <option value="">請選擇場館</option>${venueOptions(venues, e?.EventVenue_FK)}</select></label>
+        <label class="field"><span>開始日期</span><input class="input" type="date" name="start_date" required value="${isoDay(e?.EventStartDate)}"></label>
+        <label class="field"><span>結束日期</span><input class="input" type="date" name="end_date" required value="${isoDay(e?.EventEndDate)}"></label>
+        <label class="field"><span>全票價格（免費填 0，未公布留空）</span><input class="input" type="number" min="0" name="price" value="${e?.EventOriginalPrice ?? ""}"></label>
+        <label class="field"><span>活動網址</span><input class="input" type="url" name="url" maxlength="255" placeholder="https://" value="${esc(e?.EventURL ?? "")}"></label>
+        <label class="field"><span>開賣時間（選填）</span><input class="input" type="datetime-local" name="sale_start" value="${e?.EventSaleStartDate ? e.EventSaleStartDate.slice(0, 16) : ""}"></label>
+      </div>
+      <div id="venue-overlap" class="venue-overlap" aria-live="polite" hidden></div>
+      <details class="venue-new" id="venue-new">
+        <summary>找不到場館？新增場館</summary>
+        <div class="form-grid">
+          <label class="field"><span>場館名稱</span><input class="input" id="v-name" maxlength="50"></label>
+          <label class="field"><span>縣市</span><select class="input" id="v-city">${opts.cities.map((c) => `<option value="${c.CityID}">${esc(c.CityName)}</option>`).join("")}</select></label>
+          <label class="field wide"><span>完整地址</span><input class="input" id="v-address" maxlength="100" placeholder="例如：臺北市大安區和平東路一段162號"></label>
+        </div>
+        <button type="button" class="btn" id="v-add">新增場館</button>
+      </details>
+      <input type="hidden" name="image_url" value="${esc(e?.EventImageURL ?? "")}">
+      <label class="field"><span>活動說明</span><textarea class="input" name="description" rows="5">${esc(e?.EventDescription ?? "")}</textarea></label>
+      <div>
+        <h2>優惠</h2>
+        <p class="muted small">早鳥優惠要填截止日期。</p>
+        <div id="discounts">${(e?.Discounts ?? []).map((d) => discountRow(opts, d)).join("")}</div>
+        <button type="button" class="btn" id="add-discount">＋ 新增一筆優惠</button>
+      </div>
+      <p class="error" id="form-error" role="alert"></p>
+      <div class="filter-actions"><a class="btn-text" href="#/merchant">取消</a>
+        <button class="btn btn-primary">${id ? "儲存並重新送審" : "送出審核"}</button></div>
+    </form>`;
+
+  const form = document.getElementById("event-form");
+  const box = document.getElementById("discounts");
+  document.getElementById("add-discount").addEventListener("click", () => box.insertAdjacentHTML("beforeend", discountRow(opts)));
+  box.addEventListener("click", (ev) => ev.target.closest("[data-remove]")?.closest("[data-discount]").remove());
+
+  // 選好場館和日期後，列出同場館、日期重疊的已上架活動，安排日期時避開撞期
+  const overlap = document.getElementById("venue-overlap");
+  let overlapSeq = 0;
+  const showOverlap = async () => {
+    const { venue_id, start_date, end_date } = form.elements;
+    const seq = ++overlapSeq;
+    if (!venue_id.value || !start_date.value || !end_date.value || end_date.value < start_date.value) { overlap.hidden = true; return; }
+    const query = new URLSearchParams({ venue_id: venue_id.value, start_date: start_date.value, end_date: end_date.value, event_id: id || 0 });
+    const list = await api(`/api/merchant/venue-events?${query}`).catch(() => null);
+    if (seq !== overlapSeq || !list) return;
+    const venue = esc(venue_id.selectedOptions[0].textContent.split("・").pop());
+    overlap.innerHTML = list.length
+      ? `<b>這段期間 ${venue} 還有 ${list.length} 場已上架的活動</b>，安排日期時可以參考：
+        <ul>${list.map((o) => `<li><a href="#/event/${o.EventID}" target="_blank" rel="noopener">${esc(o.EventTitle)}</a>
+          <span class="muted small">${esc(o.CategoryName)}・${fmtRange(o.EventStartDate, o.EventEndDate)}</span></li>`).join("")}</ul>`
+      : `✓ 這段期間 ${venue} 沒有其他已上架的活動。`;
+    overlap.classList.toggle("has-events", list.length > 0);
+    overlap.hidden = false;
+  };
+  ["venue_id", "start_date", "end_date"].forEach((name) => form.elements[name].addEventListener("change", showOverlap));
+  showOverlap();
+
+  // 從過去的活動帶入：名稱、類別、場館、票價、網址、圖片、說明、優惠都填好；日期、開賣時間、優惠期間留給商家重填
+  document.getElementById("copy-from")?.addEventListener("change", async (ev) => {
+    if (!ev.target.value) return;
+    try {
+      const src = await api(`/api/events/${ev.target.value}`);
+      const set = (name, value) => (form.elements[name].value = value ?? "");
+      set("title", src.EventTitle); set("category_id", src.EventCategory_FK); set("venue_id", src.EventVenue_FK);
+      set("price", src.EventOriginalPrice); set("url", src.EventURL); set("description", src.EventDescription);
+      set("image_url", src.EventImageURL);
+      box.innerHTML = src.Discounts.map((d) => discountRow(opts, { ...d, DiscountStartDate: null, DiscountEndDate: null })).join("");
+      showOverlap();
+      toast(`已帶入「${src.EventTitle}」的資料，請填上日期`);
+      form.elements.start_date.focus();
+    } catch (err) { toast(err.message); }
+  });
+  // 清除全部：表單回到空白（帶入的資料、優惠、提醒都清掉）
+  document.getElementById("clear-form")?.addEventListener("click", () => {
+    form.reset();
+    form.elements.image_url.value = "";
+    box.innerHTML = "";
+    document.getElementById("copy-from").selectedIndex = 0;
+    document.getElementById("venue-overlap").hidden = true;
+    document.getElementById("form-error").textContent = "";
+    form.elements.title.focus();
+  });
+
+  document.getElementById("v-add").addEventListener("click", async () => {
+    const name = document.getElementById("v-name").value.trim();
+    const address = document.getElementById("v-address").value.trim();
+    if (!name || !address) { toast("請填寫場館名稱與地址"); return; }
+    try {
+      const { venue_id } = await api("/api/venues", { method: "POST", body: JSON.stringify({ name, address, city_id: Number(document.getElementById("v-city").value) }) });
+      document.getElementById("venue-select").innerHTML = '<option value="">請選擇場館</option>' + venueOptions(await api("/api/venues"), venue_id);
+      document.getElementById("venue-new").open = false;
+      showOverlap();
+      toast("已新增場館");
+    } catch (err) { toast(err.message); }
+  });
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(form));
+    const body = {
+      title: f.title, category_id: Number(f.category_id), venue_id: Number(f.venue_id),
+      start_date: f.start_date, end_date: f.end_date, price: f.price === "" ? null : Number(f.price),
+      url: f.url || null, description: f.description || null, sale_start: f.sale_start || null, image_url: f.image_url || null,
+      discounts: [...box.querySelectorAll("[data-discount]")].map((row) => {
+        const v = (name) => row.querySelector(`[name=${name}]`).value;
+        return { discount_type_id: Number(v("d_type")), price: Number(v("d_price")), description: v("d_desc") || null,
+                 start_date: v("d_start") || null, end_date: v("d_end") || null };
+      }),
+    };
+    const button = form.querySelector("button.btn-primary");
+    button.disabled = true;
+    try {
+      await api(id ? `/api/merchant/events/${id}` : "/api/merchant/events", { method: id ? "PUT" : "POST", body: JSON.stringify(body) });
+      toast(id ? "已儲存，等待管理員重新審核" : "已送出，等待管理員審核");
+      merchant.status = "待審核";
+      location.hash = "#/merchant";
+    } catch (err) {
+      document.getElementById("form-error").textContent = err.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
