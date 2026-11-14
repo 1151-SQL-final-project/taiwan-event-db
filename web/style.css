@@ -337,9 +337,11 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .form { display: grid; gap: 12px; }
 .error { color: var(--danger); font-size: .9rem; min-height: 1.2em; margin: 0; }
 
+/* ---------- 商家、管理員後台 ---------- */
 .chip-rows { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .notice { background: var(--warn-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
 .save-title { font-weight: 600; color: var(--text-3); }
+
 /* ---------- 其他 ---------- */
 .footer { color: var(--text-3); font-size: .8rem; padding-block: 24px calc(24px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
 .footer p { margin: 4px 0; }
@@ -359,6 +361,54 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .reminder-sale { background: var(--accent-soft); }
 .reminder-sale b { color: var(--accent-ink); }
 
+.list-bar { margin: 0; }
+/* 商家後台總覽：退回提示、活動總數與最多收藏、四個狀態（點了才在下面列出活動） */
+.m-alert { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; margin: 0 0 26px; padding: 18px 24px;
+  border-radius: var(--radius); background: var(--deal-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--deal) 35%, transparent); box-shadow: inset 5px 0 0 var(--deal); }
+.m-alert:hover { border-color: var(--deal); }
+.m-alert-text { display: grid; gap: 2px; min-width: 0; }
+.m-alert-text b { color: var(--deal); font-size: 1.2rem; }
+.m-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 14px; margin: 14px 0; }
+.m-stat { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 132px; padding: 20px 24px; }
+/* 可以點的卡片：滑過時浮起、框線變主色；選中時整張變主色 */
+.m-pick { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: start; gap: 4px; width: 100%;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+#m-list { scroll-margin: 120px 0 16px; }
+.m-pick, .m-top-link { transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.m-pick:hover, .m-top-link:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 8px 20px rgb(32 58 85 / .14); }
+.m-pick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.m-pick[aria-pressed="true"] .m-stat-label { color: #fff; }
+.m-top-link { color: var(--text); text-decoration: none; }
+.m-stat-label { color: var(--text-2); font-size: .95rem; }
+.m-stat-value { font-family: var(--font-display); font-size: 3rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.m-stat-value small { font-size: 1.1rem; font-weight: 400; }
+.m-top-title { color: var(--text); font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; line-height: 1.35;
+  text-decoration: none; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.m-top-link:hover .m-top-title { color: var(--accent-ink); }
+.m-top-count { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.m-top-empty { color: var(--text-2); font-size: 1.1rem; }
+.m-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 22px; }
+.m-status .m-pick { padding: 18px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.m-status .m-pick:hover { border-color: var(--accent); box-shadow: 0 8px 20px rgb(32 58 85 / .14); }
+.m-status .m-pick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.m-status-count { font-family: var(--font-display); font-size: 2.2rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.m-status-name { font-size: 1.05rem; }
+/* 被退回的活動：格式和其他卡片一樣，顏色和退回提示相同 */
+.m-card-rejected { background: var(--deal-soft); border-color: color-mix(in srgb, var(--deal) 35%, transparent); }
+.m-card-rejected .m-thumb > .tag { background: var(--deal); color: var(--surface); font-weight: 700; }
+.m-thumb { position: relative; display: block; }
+.m-thumb > .tag { position: absolute; top: 10px; left: 10px; box-shadow: 0 1px 4px rgb(0 0 0 / .15); }
+.m-card h3 a { color: inherit; text-decoration: none; }
+.m-card h3 a:hover { color: var(--accent-ink); }
+.m-card .price-row { align-items: center; }
+@media (max-width: 640px) {
+  .m-alert { padding: 16px 18px; }
+  .m-overview { grid-template-columns: minmax(0, 1fr); }
+  .m-stat { min-height: 0; padding: 16px 18px; }
+  .m-status { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .m-status .m-pick { padding: 14px 16px; }
+}
 /* ---------- 動畫：換頁淡入、卡片依序浮現、滑鼠移上去的回饋（系統設定減少動態效果時全部關掉） ---------- */
 #app > :not(.skeleton) { animation: page-in .35s ease-out both; }
 @keyframes page-in { from { opacity: 0; } }
@@ -409,11 +459,15 @@ details.table-view summary { cursor: pointer; color: var(--accent-ink); font-siz
 .btn.pop { animation: pop .45s ease-out; }
 .toast:not([hidden]) { animation: toast-in .3s cubic-bezier(.2, .8, .2, 1); }
 .card.auth, .filters { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
+/* 商家後台切換狀態只是顯示／隱藏，不播浮現動畫，才不會閃 */
+.grid.m-grid > .event-card { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   #app > *, .home-art, .home-name, .home-hero .eyebrow, .home-hero .lead, .home-actions, .hero h1, .hero p,
   .grid > .event-card, .strip-item, .save-row, .reminder, .detail-head, .detail > :first-child > *, .side > *, .detail-cover img,
   .btn.pop, .toast, .card.auth, .filters { animation: none !important; }
+  .m-pick, .m-top-link { transition: none; }
+  .m-pick:hover, .m-top-link:hover { transform: none; }
   .event-card, .strip-item, .btn, .event-thumb img, .event-thumb .thumb-art, .home-art img { transition: none; }
   .event-card:hover, .strip-item:hover, .event-card:hover .event-thumb img, .event-card:hover .event-thumb .thumb-art { transform: none; }
 }

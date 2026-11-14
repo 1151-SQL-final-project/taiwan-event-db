@@ -1,4 +1,4 @@
-// 登入／註冊、帳號頁。
+// 登入／註冊、帳號頁，以及後台共用的角色檢查。
 // 所有 js/*.js 是一般的 <script>，依 index.html 的順序載入，彼此共用最上層的變數與函式。
 
 // ---------- 登入／註冊 ----------
@@ -107,4 +107,16 @@ async function viewLogin() {
   }));
   app.querySelectorAll(".demo-account").forEach((b) => b.addEventListener("click", () =>
     signIn("/api/auth/login", { email: b.dataset.email, password: DEMO_PASSWORD }, b)));
+}
+
+// ---------- 後台共用 ----------
+
+// 沒登入或角色不對時顯示提示，回傳 false
+function requireRole(role, returnTo) {
+  if (me?.UserRole === role) return true;
+  viewLogin.returnTo = returnTo;
+  app.innerHTML = `<div class="card empty"><h2>這一頁只開放給${esc(role)}帳號</h2>
+    <p>${me ? `目前登入的是${esc(me.UserRole)}帳號（${esc(me.UserName)}）。` : "請先登入。"}</p>
+    <a class="btn btn-primary" href="#/login">${me ? "切換帳號" : "登入／註冊"}</a></div>`;
+  return false;
 }
