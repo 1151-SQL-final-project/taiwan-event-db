@@ -6,7 +6,8 @@
 輸入：data/raw/moc_*.json
 輸出：
     data/clean/moc_venues.csv     場館（同名同縣市合併成一筆）
-    data/clean/moc_events.csv     活動（一個場館一列：同一場活動在多個場館舉辦時拆成多列，EventKey 相同）
+    data/clean/moc_events.csv     活動（一個場館一列：同一場活動在多個場館舉辦時拆成多列，EventKey 相同；
+                                  同一場活動被登錄兩次的會合併，見 merge_twins）
     data/clean/moc_discounts.csv  從優惠說明自動擷取的優惠（標記「待確認」）
     data/review/moc_rejects.csv               無法判斷縣市而捨棄的場次，附原因
     data/review/moc_discount_candidates.csv   提到優惠、但無法自動擷取的活動，給人工建檔參考
@@ -361,6 +362,81 @@ def extract_discounts(raw: dict, base_price: int | None) -> tuple[list[dict], li
     return list(found.values()), sorted(mentioned - found.keys())
 
 
+OPENTIX_RE = re.compile(r"opentix\.life/(?:program|event)/(\d+)")
+FILL_FIELDS = ["EventOriginalPrice", "EventPriceNote", "EventDescription", "EventImageURL"]
+
+
+def overlaps(a: dict, b: dict) -> bool:
+    return a["EventStartDate"] <= b["EventEndDate"] and b["EventStartDate"] <= a["EventEndDate"]
+
+
+def merge_twins(events: list[dict], discounts: list[dict], candidates: list[dict]):
+    """文化部常把同一場活動登錄兩次（UID 不同），網站上就會重複上架。這兩種情況視為同一場、合併成一組：
+    1. 同一個 OPENTIX 節目編號（一筆 /program/編號、一筆 /event/編號），日期重疊。
+    2. 名稱只差在標點或空白、起訖日相同、同縣市，場館名稱一個包含另一個（例如「臺灣戲曲中心」與「臺灣戲曲中心小舞台」）。
+    保留有 /program/ 網址的那組（場次時間、場館比較完整），否則保留場館名稱較詳細的；
+    另一組的票價、票價說明、介紹、圖片補進保留那組的空白欄位；優惠改掛到保留的活動（同類優惠已經有就不重複）。
+    日期完全不重疊的（例如同一節目不同檔期）不合併。"""
+    rows: dict[str, list] = {}
+    for e in events:
+        rows.setdefault(e["EventKey"], []).append(e)
+    rank = lambda k: ("/program/" in rows[k][0]["EventURL"], len(rows[k][0]["_venue"][0]))
+    groups: list[list] = []  # 每組是可能重複的 EventKey
+    keys_by_id: dict[str, list] = {}
+    for e in events:
+        m = OPENTIX_RE.search(e["EventURL"])
+        if m and e["EventKey"] not in keys_by_id.setdefault(m.group(1), []):
+            keys_by_id[m.group(1)].append(e["EventKey"])
+    groups += [keys for keys in keys_by_id.values() if len(keys) > 1]
+    by_title: dict[tuple, list] = {}
+    for e in events:
+        by_title.setdefault((re.sub(r"[\s\W_]+", "", e["EventTitle"]), e["EventStartDate"], e["EventEndDate"]), []).append(e)
+    for same in by_title.values():
+        for i, a in enumerate(same):
+            for b in same[i + 1:]:
+                (va, ca), (vb, cb) = a["_venue"], b["_venue"]
+                if a["EventKey"] != b["EventKey"] and ca == cb and (va in vb or vb in va):
+                    groups.append([a["EventKey"], b["EventKey"]])
+    replaced = {}  # 被合併掉的 EventKey → 保留的 EventKey
+    for keys in groups:
+        keys = [k for k in keys if k not in replaced]
+        if len(keys) < 2:
+            continue
+        keep = max(keys, key=rank)  # 同分時取先出現的
+        for other in keys:
+            if other == keep or not all(any(overlaps(o, k) for k in rows[keep]) for o in rows[other]):
+                continue
+            for k in rows[keep]:
+                twin = next((o for o in rows[other] if overlaps(o, k)), rows[other][0])
+                for field in FILL_FIELDS:
+                    if not str(k[field]).strip() and str(twin[field]).strip():
+                        k[field] = twin[field]
+            replaced[other] = keep
+            stats["活動：同一場活動登錄兩次，合併"] += 1
+            stats["活動：合併後減少的筆數"] += len(rows[other])
+    for k in replaced:  # 保留的那組之後又被合併掉時，改指向最後保留的
+        while replaced[k] in replaced:
+            replaced[k] = replaced[replaced[k]]
+    events = [e for e in events if e["EventKey"] not in replaced]
+    has = {(d["EventKey"], d["DiscountTypeName"]) for d in discounts if d["EventKey"] not in replaced}
+    merged = []
+    for d in discounts:
+        if d["EventKey"] in replaced:
+            d = {**d, "EventKey": replaced[d["EventKey"]]}
+            if (d["EventKey"], d["DiscountTypeName"]) in has:
+                continue
+            has.add((d["EventKey"], d["DiscountTypeName"]))
+        merged.append(d)
+    titles = {e["EventKey"]: e["EventTitle"] for e in events}
+    for d in merged:
+        d["EventTitle"] = titles.get(d["EventKey"], d["EventTitle"])
+    kept_candidates = {c["EventKey"] for c in candidates if c["EventKey"] not in replaced}
+    candidates = [c for c in candidates if c["EventKey"] not in replaced or replaced[c["EventKey"]] not in kept_candidates]
+    for c in candidates:
+        c["EventKey"] = replaced.get(c["EventKey"], c["EventKey"])
+    return events, merged, candidates
+
+
 # ---------- 主程式 ----------
 
 def write_csv(path: pathlib.Path, rows: list[dict], columns: list[str]):
@@ -459,6 +535,11 @@ def main():
         if unparsed:
             candidates.append({"EventKey": raw["UID"], "EventTitle": title, "MentionedTypes": "、".join(unparsed),
                                "DiscountInfo": one_line(raw.get("discountInfo"))[:300], "EventURL": url})
+
+    events, discounts, candidates = merge_twins(events, discounts, candidates)
+    used = {e["_venue"] for e in events}  # 只有被合併掉的活動用到的場館不匯入
+    stats["場館：只有被合併掉的活動用到，不匯入"] = len(venues) - len(used & venues.keys())
+    venues = {k: v for k, v in venues.items() if k in used}
 
     # 不同縣市有同名場館時（例如「演藝廳」），名稱後面加上縣市，讓場館名稱不重複
     name_count = collections.Counter(v["VenueName"] for v in venues.values())
