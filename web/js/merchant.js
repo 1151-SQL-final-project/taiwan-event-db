@@ -169,7 +169,20 @@ async function viewEventForm(id) {
         </div>
         <button type="button" class="btn" id="v-add">新增場館</button>
       </details>
-      <input type="hidden" name="image_url" value="${esc(e?.EventImageURL ?? "")}">
+      <div class="field">
+        <span>活動圖片（選填）</span>
+        <div class="image-picker">
+          <div class="image-preview" id="image-preview" aria-live="polite"></div>
+          <div class="image-controls">
+            <label class="btn" for="image-file">上傳圖片</label>
+            <input type="file" id="image-file" accept="${IMAGE_TYPES.join(",")}" hidden>
+            <input class="input" type="url" id="image-link" maxlength="255" placeholder="或貼上圖片網址 https://" aria-label="圖片網址">
+            <p class="muted small">JPG、PNG、WebP 或 GIF，5 MB 以內</p>
+            <button type="button" class="btn-text" id="image-remove" hidden>移除圖片</button>
+          </div>
+        </div>
+        <input type="hidden" name="image_url" value="${esc(e?.EventImageURL ?? "")}">
+      </div>
       <label class="field"><span>活動說明</span><textarea class="input" name="description" rows="5">${esc(e?.EventDescription ?? "")}</textarea></label>
       <div>
         <h2>優惠</h2>
@@ -209,6 +222,40 @@ async function viewEventForm(id) {
   ["venue_id", "start_date", "end_date"].forEach((name) => form.elements[name].addEventListener("change", showOverlap));
   showOverlap();
 
+  // 活動圖片：上傳的檔案存在伺服器（uploads/…），或直接用外部圖片網址；表單只送出 image_url
+  const preview = document.getElementById("image-preview");
+  const link = document.getElementById("image-link");
+  const setImage = (url) => {
+    form.elements.image_url.value = url || "";
+    link.value = url && !url.startsWith("uploads/") ? url : "";
+    document.getElementById("image-remove").hidden = !url;
+    preview.classList.remove("is-error");
+    preview.innerHTML = url ? `<img src="${esc(url)}" alt="活動圖片預覽" referrerpolicy="no-referrer">`
+      : '<span class="muted small">還沒有圖片</span>';
+    preview.querySelector("img")?.addEventListener("error", () => {
+      preview.classList.add("is-error");
+      preview.innerHTML = '<span class="small">圖片無法顯示，請確認網址或重新上傳</span>';
+    });
+  };
+  const upload = async (file) => {
+    if (!file) return;
+    preview.innerHTML = '<span class="muted small">上傳中…</span>';
+    try {
+      setImage(await uploadImage(file));
+      toast("已上傳圖片");
+    } catch (err) {
+      setImage(form.elements.image_url.value);
+      toast(err.message);
+    }
+  };
+  setImage(form.elements.image_url.value);
+  document.getElementById("image-file").addEventListener("change", (ev) => { upload(ev.target.files[0]); ev.target.value = ""; });
+  link.addEventListener("change", () => setImage(link.value.trim()));
+  document.getElementById("image-remove").addEventListener("click", () => setImage(""));
+  preview.addEventListener("dragover", (ev) => { ev.preventDefault(); preview.classList.add("is-drop"); });
+  preview.addEventListener("dragleave", () => preview.classList.remove("is-drop"));
+  preview.addEventListener("drop", (ev) => { ev.preventDefault(); preview.classList.remove("is-drop"); upload(ev.dataTransfer.files[0]); });
+
   // 從過去的活動帶入：名稱、類別、場館、票價、網址、圖片、說明、優惠都填好；日期、開賣時間、優惠期間留給商家重填
   document.getElementById("copy-from")?.addEventListener("change", async (ev) => {
     if (!ev.target.value) return;
@@ -217,7 +264,7 @@ async function viewEventForm(id) {
       const set = (name, value) => (form.elements[name].value = value ?? "");
       set("title", src.EventTitle); set("category_id", src.EventCategory_FK); set("venue_id", src.EventVenue_FK);
       set("price", src.EventOriginalPrice); set("url", src.EventURL); set("description", src.EventDescription);
-      set("image_url", src.EventImageURL);
+      setImage(src.EventImageURL);
       box.innerHTML = src.Discounts.map((d) => discountRow(opts, { ...d, DiscountStartDate: null, DiscountEndDate: null })).join("");
       showOverlap();
       toast(`已帶入「${src.EventTitle}」的資料，請填上日期`);
@@ -227,7 +274,7 @@ async function viewEventForm(id) {
   // 清除全部：表單回到空白（帶入的資料、優惠、提醒都清掉）
   document.getElementById("clear-form")?.addEventListener("click", () => {
     form.reset();
-    form.elements.image_url.value = "";
+    setImage("");
     box.innerHTML = "";
     document.getElementById("copy-from").selectedIndex = 0;
     document.getElementById("venue-overlap").hidden = true;
@@ -274,4 +321,16 @@ async function viewEventForm(id) {
       button.disabled = false;
     }
   });
+}
+
+// 上傳活動圖片：請求內容直接是圖片檔，回傳存好的路徑（uploads/…）
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+async function uploadImage(file) {
+  if (!IMAGE_TYPES.includes(file.type)) throw new Error("只能上傳 JPG、PNG、WebP 或 GIF 圖片");
+  if (file.size > 5 * 1024 * 1024) throw new Error("圖片要在 5 MB 以內");
+  const res = await fetch("/api/merchant/images", { method: "POST", body: file,
+    headers: { "Content-Type": file.type, Authorization: `Bearer ${token}` } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `上傳失敗（${res.status}）`);
+  return data.url;
 }
