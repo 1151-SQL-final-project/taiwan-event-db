@@ -101,19 +101,6 @@ python -m venv .venv
 3. **管理員** `admin@example.com` 登入 → 管理員後台「待審核」→ 在左邊佇列點剛才的活動，右邊確認資料後按「通過並上架」（和已上架活動相似時會出現重複提醒，按「退回…」可選理由）→ 切到「活動管理」搜尋活動、違規下架。
 4. 回到「找活動」，剛才的活動已經查得到；管理員再按「違規下架」→ 又查不到了。
 
-### 線上示範版（簡報用連結）
-
-<https://1151-sql-final-project.github.io/>：不需要 Python、Access 的示範版。網頁和 `web/` 完全一樣，只多載入 `demo/mock-api.js`，
-在瀏覽器裡照 `sql/` 的查詢模擬後端 API，資料是從 `db/events.accdb` 匯出的快照（`data.js`）。
-「（測試）」活動的日期會依打開的日期往後推，所以隨時打開都看得到即將開賣、早鳥即將截止的範例。
-示範時新增、修改的資料只存在看的人自己的瀏覽器，頁尾「重設示範資料」可以清掉。
-
-資料庫或網頁更新後重新產生（輸出到 `demo/site/`，再推到組織的 `1151-SQL-final-project.github.io` repo）：
-
-```powershell
-.venv\Scripts\python demo\build_demo.py
-```
-
 ### 更新開放資料
 
 ```powershell
