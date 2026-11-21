@@ -149,8 +149,8 @@ python -m venv .venv
 
 | 指令 | 測什麼 | 項目數 | 時間 |
 | --- | --- | --- | --- |
-| `.venv\Scripts\python tests\api_roles.py` | 後端：三種角色的權限，上架 → 審核（含退回理由）→ 收藏 → 下架流程、開賣時間、重複提醒 | 63 | 約 1 分鐘 |
-| `.venv\Scripts\python tests\e2e_web.py` | 網頁：用電腦上的 Edge 實際操作，含退回彈窗、重複提醒、即將開賣、手機寬度與深淺色 | 68 | 約 3 分鐘 |
+| `.venv\Scripts\python tests\api_roles.py` | 後端：三種角色的權限，上架 → 審核（含退回理由）→ 收藏 → 下架流程、開賣時間、重複提醒 | 98 | 約 1 分鐘 |
+| `.venv\Scripts\python tests\e2e_web.py` | 網頁：用電腦上的 Edge 實際操作，含退回彈窗、重複提醒、即將開賣、手機寬度與深淺色 | 145 | 約 3 分鐘 |
 | `.venv\Scripts\python tests\verify_access_frontend.py` | Access 後台（需先產生 `後台.accdb`）；測試時 Access 視窗會短暫出現 | 18 | 約 1 分鐘 |
 
 **更新開放資料**：專題附的是 2026/11/02 下載、整理好的資料。要改用最新的文化部資料，依序執行（需要網路，全部約 15 分鐘）：
