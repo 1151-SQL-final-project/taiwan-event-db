@@ -47,10 +47,10 @@ def run(args, error, fix=""):
 
 
 def runtime_requirements() -> list[str]:
-    """requirements.txt 裡執行網站需要的套件（「以下只有跑測試才需要」之後的不裝，省時間）。"""
+    """requirements.txt 裡執行網站需要的套件（「test-only」那一行之後只有跑測試才需要，不裝，省時間）。"""
     packages = []
     for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines():
-        if "只有跑測試才需要" in line:
+        if "test-only" in line:
             break
         line = line.split("#")[0].strip()
         if line:
