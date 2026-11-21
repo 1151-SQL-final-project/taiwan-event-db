@@ -57,6 +57,8 @@ def com_registered(prog_id):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):  # 輸出導到檔案時也用 UTF-8，✓ ✗ 才印得出來
+        stream.reconfigure(encoding="utf-8")
     print("【系統】")
     report(platform.system() == "Windows", "作業系統", platform.platform(), "本專案需要 Windows（Access 只有 Windows 版）")
     py_bits = struct.calcsize("P") * 8
@@ -89,7 +91,7 @@ def main():
             report(None if not sys.prefix.endswith(".venv") else False, f"套件 {module}", "未安裝",
                    ".venv\\Scripts\\python -m pip install -r requirements.txt")
     db = ROOT / "db" / "events.accdb"
-    report(db.exists(), "資料庫 db\\events.accdb", "", ".venv\\Scripts\\python db\\build_db.py --with-test-events")
+    report(db.exists(), "資料庫 db\\events.accdb", "", ".venv\\Scripts\\python db\\build_db.py")
     if db.exists():
         try:
             import pyodbc
@@ -99,7 +101,9 @@ def main():
             report(True, "連得上資料庫", f"活動 {count} 筆")
         except Exception as exc:
             report(False, "連得上資料庫", str(exc)[:120], "多半是位元數不一致或沒有 ODBC 驅動程式（見上面）")
-    report((ROOT / "db" / "後台.accdb").exists(), "Access 管理後台 db\\後台.accdb", "",
+    # 選用：網站 Demo 不需要，一鍵啟動也不會產生，所以沒有時只提醒（！），不算問題
+    frontend = (ROOT / "db" / "後台.accdb").exists()
+    report(True if frontend else None, "Access 管理後台 db\\後台.accdb", "" if frontend else "選用，還沒產生",
            ".venv\\Scripts\\python db\\build_admin_frontend.py（執行前先關閉 Access）")
 
     print("【Demo】")
