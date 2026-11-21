@@ -1,7 +1,8 @@
 """一鍵啟動探點：由專題資料夾的「啟動探點.bat」（或桌面捷徑）執行，不用自己打指令。
 
 依序做這些事，已經做過的會跳過：
-1. 第一次執行：建立虛擬環境 .venv 並安裝執行需要的套件（約 1–2 分鐘，需要網路）
+1. 第一次執行：建立虛擬環境 .venv 並安裝執行需要的套件（約 1–2 分鐘，需要網路）；
+   上次安裝到一半中斷（例如斷網）時，會自動補裝
 2. 第一次執行：產生資料庫 db\\events.accdb（約 1 分鐘）
 3. 啟動網站，等網站準備好後自動用瀏覽器打開；關掉這個視窗就會停止網站
    如果 8000 已經有探點在跑（例如重複點了捷徑），就直接打開瀏覽器
@@ -62,17 +63,25 @@ def in_venv() -> bool:
     return pathlib.Path(sys.prefix).resolve() == (ROOT / ".venv").resolve()
 
 
+def packages_ready() -> bool:
+    """虛擬環境裡執行網站需要的套件都裝好了嗎（上次安裝到一半斷網時，.venv 在但套件不齊）。"""
+    check = "import fastapi, uvicorn, pyodbc, win32com.client"
+    return subprocess.run([str(VENV_PYTHON), "-c", check], cwd=ROOT, capture_output=True).returncode == 0
+
+
 def ensure_venv():
-    """還沒有虛擬環境就建立並安裝套件，然後改用虛擬環境的 Python 重新執行本程式。"""
-    if in_venv():
-        return
-    if not VENV_PYTHON.exists():
+    """還沒有虛擬環境就建立；套件不齊就安裝；然後改用虛擬環境的 Python 重新執行本程式。"""
+    if not in_venv() and not VENV_PYTHON.exists():
         if sys.version_info < (3, 10):
             stop(f"Python 版本太舊（{sys.version.split()[0]}）", "請安裝 Python 3.12（python.org），安裝時勾選 Add python.exe to PATH")
-        step("第一次執行：建立虛擬環境並安裝套件（約 1–2 分鐘，需要網路）")
+        step("第一次執行：建立虛擬環境")
         run([sys.executable, "-m", "venv", str(ROOT / ".venv")], "建立虛擬環境失敗")
+    if not packages_ready():
+        step("安裝執行需要的套件（約 1–2 分鐘，需要網路）")
         run([str(VENV_PYTHON), "-m", "pip", "install", "--disable-pip-version-check", *runtime_requirements()],
-            "安裝套件失敗", "請確認有網路，再重新執行")
+            "安裝套件失敗", "請確認有網路，再重新執行（會從還沒裝好的套件接著裝）")
+    if in_venv():
+        return
     # Windows 的 os.execv 不會真的取代目前的程式，改用子程式執行並等它結束
     sys.exit(subprocess.run([str(VENV_PYTHON), str(pathlib.Path(__file__).resolve()), *sys.argv[1:]]).returncode)
 
