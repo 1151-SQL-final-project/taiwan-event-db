@@ -173,6 +173,7 @@ python -m venv .venv
 
 | 狀況 | 原因 | 解決方法 |
 | --- | --- | --- |
+| 雙擊 `啟動探點.bat` 後顯示 `can't open file ... tools\start.py` 或 `No such file` | 在 ZIP 裡直接雙擊執行：Windows 只會把這一個檔案暫時解到暫存資料夾，其他檔案都不在旁邊 | 先在 ZIP 上按右鍵 →「解壓縮全部」，到解壓出來的資料夾再雙擊 `啟動探點.bat` |
 | `'python' 不是內部或外部命令` | 安裝 Python 時沒勾「Add python.exe to PATH」 | 重新執行安裝程式 →「Modify」勾選，或改用 `py` 代替 `python` |
 | `Data source name not found` 或 `IM002` | Python 與 Office 位元數不同，或沒有 Access 元件 | 裝和 Office 同位元數的 Python；沒有 Access 則安裝同位元數的 Access Database Engine |
 | 執行指令時顯示「執行指令碼已停用」 | PowerShell 的執行原則限制 | 本手冊的指令都直接呼叫 `.venv\Scripts\python`，不需要「啟用」虛擬環境；照手冊指令輸入即可 |
